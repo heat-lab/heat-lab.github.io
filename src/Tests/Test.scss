@@ -1,0 +1,397 @@
+body {
+  background-color: #e3f2fd;
+}
+#testPage {
+  h3 {
+    text-align: center;
+  }
+  #progress {
+    border-radius: 10px;
+    width: 50%;
+    height: 18px;
+    margin: 0.5rem auto 1rem;
+    box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2);
+  }
+  #progress::-webkit-progress-bar {
+    background-color: white;
+    border-radius: 7px;
+  }
+  #progress::-webkit-progress-value {
+    background-color: rgb(53, 161, 197);
+    border-radius: 7px;
+    box-shadow: 1px rgba(0, 234, 255, 0.8);
+  }
+
+  .reactMicContainer {
+    height: 0px;
+    width: 0px;
+    overflow: hidden;
+  }
+
+  .testContainer {
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .indicator {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-top: 0rem;
+    margin-bottom: 40px;
+  }
+  .pauseButton {
+    font-size: 4rem;
+    &.disabled {
+      opacity: 0.5;
+    }
+  }
+  .completionImg,
+  .reinforcementGif {
+    width: 50%;
+    margin: 0 auto 1rem;
+    display: block;
+  }
+  .completionContainer,
+  .reinforcementContainer {
+    text-align: center;
+  }
+  .completionMessage {
+    font-size: 1rem;
+    margin: 2rem 0;
+  }
+  
+  .testTitle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 35px;
+  font-family: sans-serif;
+  font-size: 1.7rem;
+  font-weight: bold;
+  color: rgb(203, 224, 253);
+  margin-bottom: 1rem;
+  margin-top: 0;
+  }
+}
+
+.submitButtonContainer {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  margin-bottom: 50px;
+}
+
+.submitButton {
+  font-weight: 800 !important;
+}
+
+.imagesContainer {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: auto;
+}
+
+.imageContainer {
+  margin-left: 20px;
+  margin-right: 20px;
+  margin-bottom: 20px;
+  width: 20%;
+  height: 12rem;
+  display: flex;
+  justify-content: center;
+  box-shadow: 3px 3px 10px 5px rgba(0, 0, 0, 0.3);
+  border: 3px solid rgb(48, 53, 69);
+  border-radius: 1px;
+  background-color: white;
+  position: relative;
+  transition: transform 0.2s ease, outline-color 0.2s ease;
+}
+
+.imageContainer.selected {
+  border-color: rgb(100, 235, 129);
+  transform: scale(1.07);
+}
+
+.imageContainer.unselected:hover {
+  transform: scale(1.03);
+}
+
+.imageContainer.unselected:active {
+  transform: scale(1);
+}
+
+.image {
+  max-width: 100%;
+  height: 12rem;
+  object-fit: contain;
+  transition: transform 0.2s ease, outline-color 0.2s ease;
+}
+
+.imageSelectedOverlay {
+  display: block;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.imageSelectedOverlay:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.imageSelectedOverlay.visible {
+  opacity: 1; 
+  background-color: rgba(0, 186, 50, 0.15);
+}
+
+.actionText {
+  margin: 0px 0px;
+  height: 30px;
+}
+
+.actionText.subText {
+  margin-top: 10px;
+  height: 20px;
+  font-weight: 800;
+  color: rgb(113, 113, 113);
+  font-size: 13px;
+}
+
+.puppyContainer {
+  margin-top: -2rem;
+  width: 50vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.instructionPuppy {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.listeningContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  height: fit-content;
+}
+
+.disabledMicrophone {
+  width: 100px;
+  height: auto;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.enabledMicrophone {
+  width: 85px;
+  height: auto;
+  margin-bottom: 30px;
+  margin-left: 7px;
+  margin-right: 7px;
+  transform: translateY(15px);
+}
+
+.listeningText {
+  margin-top: 0;
+  font-size: smaller;
+  color: rgb(134, 134, 134);
+}
+
+.microphoneAnimationContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-15px);
+}
+
+.listeningBar {
+  background-color: rgb(53, 79, 197);
+  border-radius: 5px;
+  width: 5px;
+  margin-left: 4px;
+  margin-right: 4px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+      transform: scale(0.7);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.listeningBar:nth-child(1) {
+  height: 35px;
+  animation-delay: 0s;
+}
+
+.listeningBar:nth-child(2) {
+  height: 40px;
+  animation-delay: 0.2s;
+}
+
+.listeningBar:nth-child(3) {
+  height: 50px;
+  animation-delay: 0.1s;
+}
+
+.listeningBar:nth-child(4) {
+  height: 43px;
+  animation-delay: 0.4s;
+}
+
+.listeningBar:nth-child(6) {
+  height: 55px;
+  animation-delay: 0s;
+}
+
+.listeningBar:nth-child(7) {
+  height: 38px;
+  animation-delay: 0.2s;
+}
+
+.listeningBar:nth-child(8) {
+  height: 42px;
+  animation-delay: 0.3s;
+}
+
+.listeningBar:nth-child(9) {
+  height: 32px;
+  animation-delay: 0.5s;
+}
+
+.toolTipContainer {
+  display: flex;
+  align-items: center;
+  margin: 0 0;
+}
+
+.pointingToolTip {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-100%) translateX(-20px);
+}
+
+.highlightedAreaContainer {
+  max-width: fit-content;
+  max-height: fit-content;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 3;
+}
+
+.backgroundHighlight {
+  position: absolute;
+  width: calc(100% + 24px);
+  height: calc(100% + 14px);
+  background-color: aliceblue;
+  border-radius: 5px;
+  border-color: rgb(228, 241, 252);
+  border-width: 2px;
+  z-index: -1;
+}
+
+.blockingOverlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  z-index: 1;
+}
+
+.grayOutBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(128, 128, 128, 0.7);
+  z-index: 1;
+}
+
+.divider {
+  margin: 10px 0px;
+  height: 3px;
+  width: 100%;
+  background-color: rgb(206, 225, 242);
+}
+
+.browserIconContainer {
+  display: flex;
+}
+
+.browserIcon {
+  margin: 0px 20px;
+  width: 60px;
+  height: 60px;
+  transition: transform 0.2s ease
+}
+
+.browserIcon:hover {
+  transform: scale(1.07);
+}
+
+.reactMicStyle {
+  height: 50px;
+  width: 300px;
+  border: 2px solid rgba(125, 176, 235, 0.3);
+  border-radius: 5px;
+}
+
+.testMicrophone {
+  width: 200px;
+  height: 50px;
+  border-radius: 2px !important;
+  font-size: 15px !important;
+}
+
+.practiceText {
+  margin-top: -20px;
+  text-align: center;
+  color: red;
+  font-weight: 700;
+  font-size: large;
+  margin-bottom: 10px;
+}
+
+.repeatQuestion {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.redoImg {
+  width: 30px;
+  height: auto;
+}
+
+.confettiContainer {
+  position: fixed;
+  padding: 10px;
+  bottom: 0;
+  left: 0;
+}
+
+.confettiButton {
+  background-color: rgb(232, 154, 252) !important;
+  border-color: rgb(231, 137, 255) !important;
+}

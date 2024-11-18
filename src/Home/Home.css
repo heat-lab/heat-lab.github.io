@@ -1,0 +1,67 @@
+.home {
+  text-align: center;
+  padding-bottom: 2rem;
+}
+
+.loginSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8rem;
+  gap: 2rem;
+}
+
+.introVideo {
+  margin: 5rem 0 2rem;
+}
+
+.questionContainer {
+  margin-top: 5rem;
+}
+
+.parentQuestion {
+  align-items: center;
+}
+
+.radioButtons {
+  margin-left: auto;
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 10px;
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 35px;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: rgb(221, 235, 254);
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.subHeading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 20px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: rgb(221, 235, 254);
+  margin-top: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.nextBack {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
