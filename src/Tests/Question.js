@@ -23,19 +23,6 @@ const Question = ({ curQuestion, recordAnswer, showChinese }) => {
 
   const timeoutRef = useRef(null);
 
-  // calculate the option card's width according to the number of options
-  const getOptionWidth = () => {
-    const optionsLen = curQuestion.options.length;
-    switch (optionsLen) {
-      case 2:
-      case 4:
-        return 6;
-      case 3:
-      default:
-        return 4;
-    }
-  };
-
   useEffect(() => {
     if (questionAudio instanceof Audio) {
       questionAudio.pause();
@@ -76,7 +63,10 @@ const Question = ({ curQuestion, recordAnswer, showChinese }) => {
             return prevPlayCount;
           });
         });
-        questionAudio.play();
+        questionAudio.play().catch((error) => {
+          alert("error in playing question.", error);
+          setDisableOption(false);
+        });
       }
     }
 
