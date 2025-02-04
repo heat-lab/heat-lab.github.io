@@ -3,19 +3,19 @@ import "./Test.scss";
 import AppBar from "@mui/material/AppBar";
 import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
-import Button from "@mui/material/Button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Question from "./Question";
 import Repetition from "./Repetition";
 import Instructions from "./Instructions";
-import GuidedTutorial from "./GuidedTutorial";
 import Practice from "./Practice";
 import TranslationButton from "../Components/TranslationButton";
 import AudioPermission from "./AudioPermission";
 import ReinforcementPage from "./ReinforcementPage";
 import CompletionPage from "./CompletionPage";
+import GreenButton from "../Components/GreenButton";
 
-const LAMBDA_API_ENDPOINT = "https://2inehosoqi.execute-api.us-east-2.amazonaws.com/prod/audio-upload";
+const LAMBDA_API_ENDPOINT =
+  "https://2inehosoqi.execute-api.us-east-2.amazonaws.com/prod/audio-upload";
 
 const Test = ({ type, language }) => {
   const [questions, setQuestions] = useState([]);
@@ -30,12 +30,26 @@ const Test = ({ type, language }) => {
   const [audioBlobs, setAudioBlobs] = useState({});
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   let ReinforcementAudio = [
-    ["https://sites.usc.edu/heatlab/files/2024/11/RV-English-14-way-through-the-test-w-audio.m4a", "https://sites.usc.edu/heatlab/files/2024/11/RV-14-way-through-the-test-w-audio.m4a"],
-    ["https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-Midway-through-the-test-w-audio.m4a", "https://sites.usc.edu/heatlab/files/2024/11/RV-Midway-through-the-test-w-audio.m4a"],
-    ["https://sites.usc.edu/heatlab/files/2024/11/RV-English-34-way-through-the-test-w-audio.m4a", "https://sites.usc.edu/heatlab/files/2024/11/RV-34-way-through-the-test-w-audio-2.m4a"],
-    ["https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-End-of-the-test-narration-w-audio.m4a", "https://sites.usc.edu/heatlab/files/2024/11/RV-End-of-the-test-narration-w-audio.m4a"]]
+    [
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-English-14-way-through-the-test-w-audio.m4a",
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-14-way-through-the-test-w-audio.m4a",
+    ],
+    [
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-Midway-through-the-test-w-audio.m4a",
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-Midway-through-the-test-w-audio.m4a",
+    ],
+    [
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-English-34-way-through-the-test-w-audio.m4a",
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-34-way-through-the-test-w-audio-2.m4a",
+    ],
+    [
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-End-of-the-test-narration-w-audio.m4a",
+      "https://sites.usc.edu/heatlab/files/2024/11/RV-End-of-the-test-narration-w-audio.m4a",
+    ],
+  ];
 
   let audioLink = useRef("");
 
@@ -48,24 +62,32 @@ const Test = ({ type, language }) => {
     } else if (curId === Math.floor(questions.length / 2)) {
       setShowReinforcementPage(true);
       setReinforcementID(1);
-    } else if (curId === Math.floor(3*questions.length / 4)) {
+    } else if (curId === Math.floor((3 * questions.length) / 4)) {
       setShowReinforcementPage(true);
       setReinforcementID(2);
     }
-    setCurId(curId + 1);
-    console.log("question id:", curId);
+    if (type === "matching" && language === "CN" && curId + 1 === 29) {
+      audioLink.current =
+        "https://sites.usc.edu/heatlab/files/2024/11/RV-Quantifier-test-instruction-w-audio.m4a";
+      setShowInstructions(true);
+      setShowPractice(true);
+      setCurId((prevId) => prevId + 2);
+    } else {
+      setCurId((prevId) => prevId + 1);
+    }
+    console.log("submitting question id:", curId + 1);
     setAnswers({ ...answers, [questionId]: answerId });
   };
 
   const recordAudioBlob = (questionId, blob) => {
     if (!questionId || !blob) {
-      console.error('Missing required parameters:', { questionId, blob });
+      console.error("Missing required parameters:", { questionId, blob });
       return;
     }
 
-    setAudioBlobs(prev => {
+    setAudioBlobs((prev) => {
       const updatedBlobs = { ...prev, [questionId]: blob };
-      console.log('Current Audio Blobs:', Object.keys(updatedBlobs));
+      console.log("Current Audio Blobs:", Object.keys(updatedBlobs));
       return updatedBlobs;
     });
   };
@@ -81,29 +103,32 @@ const Test = ({ type, language }) => {
       });
 
       const requestBody = {
-        fileType: 'audio/webm',
+        fileType: "audio/webm",
         audioData: base64Data,
         userId: localStorage.getItem("username"),
-        questionId: questionId
+        questionId: questionId,
+        bucketName: "merls-audio",
       };
 
       const response = await fetch(LAMBDA_API_ENDPOINT, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Upload failed: ${errorData.error || response.statusText}`);
+        throw new Error(
+          `Upload failed: ${errorData.error || response.statusText}`
+        );
       }
 
       const data = await response.json();
       return data.url;
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       throw error;
     }
   };
@@ -113,7 +138,8 @@ const Test = ({ type, language }) => {
       const username = localStorage.getItem("username");
       async function submitAnswersToDB() {
         console.log("type:", type);
-        let endpoint = "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions";
+        let endpoint =
+          "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions";
         let requestBody;
 
         if (type === "matching") {
@@ -123,6 +149,7 @@ const Test = ({ type, language }) => {
             isEN: language === "CN" ? false : true,
             isAudioTest: false,
             audioSubmissionList: null,
+            submissionType: "matching",
           };
         } else if (type === "repetition") {
           const audioUrls = {};
@@ -130,12 +157,15 @@ const Test = ({ type, language }) => {
             try {
               const s3UrlMatch = await uploadBlobToLambda(blob, questionId);
               if (s3UrlMatch) {
-                audioUrls[questionId] = s3UrlMatch.split('?')[0];
+                audioUrls[questionId] = s3UrlMatch.split("?")[0];
               } else {
-                console.error('Invalid S3 URL format:', s3UrlMatch);
+                console.error("Invalid S3 URL format:", s3UrlMatch);
               }
             } catch (error) {
-              console.error(`Failed to upload audio for question ${questionId}:`, error);
+              console.error(
+                `Failed to upload audio for question ${questionId}:`,
+                error
+              );
             }
           }
           requestBody = {
@@ -144,6 +174,7 @@ const Test = ({ type, language }) => {
             isEN: language === "CN" ? false : true,
             isAudioTest: true,
             userAns: null,
+            submissionType: "repetition",
           };
         }
 
@@ -151,11 +182,12 @@ const Test = ({ type, language }) => {
 
         const response = await fetch(endpoint, {
           method: "PUT",
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
         });
 
         if (response.ok) {
-          navigate("/test-selection");
+          const queryParam = `?cn-zw=${showChinese ? "true" : "false"}`;
+          navigate(`/test-selection${queryParam}`);
         } else {
           alert("Failed to submit answers");
         }
@@ -168,10 +200,18 @@ const Test = ({ type, language }) => {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const languageParam = params.get("cn-zw");
+    setShowChinese(languageParam === "true");
+  }, [location]);
+
+  useEffect(() => {
     async function fetchQuestionList() {
       const response = await fetch(
         "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions?language=" +
-          language + "&type=" + type,
+          language +
+          "&type=" +
+          type,
         {
           method: "GET",
           headers: {
@@ -188,58 +228,87 @@ const Test = ({ type, language }) => {
 
   useEffect(() => {
     if (type === "matching") {
-      audioLink.current = language === "CN" ? "https://sites.usc.edu/heatlab/files/2024/11/RV-Mandarin-test-instruction-w-audio.m4a" : "https://sites.usc.edu/heatlab/files/2024/11/RV-English-test-instruction-w-audio.m4a"
-      
-    }
-    else if (type === "repetition") {
-      audioLink.current = language === "CN" ? "https://bpb-us-w1.wpmucdn.com/sites.usc.edu/dist/b/837/files/2024/11/RV-Mandarin-test-instruction-w-audio.m4a" : "https://bpb-us-w1.wpmucdn.com/sites.usc.edu/dist/b/837/files/2024/11/RV-English-test-instruction-w-audio.m4a";
+      audioLink.current =
+        language === "CN"
+          ? "https://sites.usc.edu/heatlab/files/2024/11/RV-Mandarin-test-instruction-w-audio.m4a"
+          : "https://sites.usc.edu/heatlab/files/2024/11/RV-English-test-instruction-w-audio.m4a";
+    } else if (type === "repetition") {
+      audioLink.current =
+        language === "CN"
+          ? "https://sites.usc.edu/heatlab/files/2024/11/SR-介绍场景.m4a"
+          : "https://sites.usc.edu/heatlab/files/2024/11/SR-Introducing-Scenario.m4a";
       setShowAudioPermission(true);
     }
   }, [type, language]);
-
-  useEffect(() => {
-    if (type === "matching" && language === "CN" && curId === 29) {
-      audioLink.current = "https://sites.usc.edu/heatlab/files/2024/11/RV-Quantifier-test-instruction-w-audio.m4a";
-      setShowInstructions(true);
-      setShowPractice(true);
-    }
-  }, [curId])
 
   let completed = curId === questions.length;
 
   if (questions.length > 0) {
     return (
       <div id="testPage">
-        <AppBar className = "titleContainer">
-          <progress id="progress" value={curId-1} max={questions.length-1}/>
-         <TranslationButton 
+        <AppBar className="titleContainer">
+          <progress
+            id="progress"
+            value={curId - 1}
+            max={questions.length - 1}
+          />
+          <TranslationButton
             showChinese={showChinese}
             setShowChinese={setShowChinese}
-         />
-      </AppBar>
+          />
+        </AppBar>
+        { localStorage.getItem("username") === "lucy" ? (
+          <div className="debugAdvanceButton">
+            <GreenButton
+              textEnglish="next part"
+              onClick={() => {
+                setCurId((prev) => prev+1);
+              }}
+            />
+          </div>
+        ) : (
+          null
+        )
+        }
         <Container className="testContainer">
           {completed ? (
-            <CompletionPage showChinese={showChinese} imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif" submitAnswers={submitAnswers} audioLink={ReinforcementAudio[3][language === "EN" ? 0 : 1]}/>
+            <CompletionPage
+              showChinese={showChinese}
+              imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
+              submitAnswers={submitAnswers}
+              audioLink={ReinforcementAudio[3][language === "EN" ? 0 : 1]}
+            />
           ) : showReinforcementPage ? (
-            <ReinforcementPage showChinese={showChinese} audioLink={ReinforcementAudio[reinforcementID][language === "EN" ? 0 : 1]} imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif" setShowReinforcement={setShowReinforcementPage}/>
+            <ReinforcementPage
+              showChinese={showChinese}
+              audioLink={
+                ReinforcementAudio[reinforcementID][language === "EN" ? 0 : 1]
+              }
+              imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
+              setShowReinforcement={setShowReinforcementPage}
+            />
           ) : showAudioPermission ? (
-            <AudioPermission setShowAudioPermission = {setShowAudioPermission} showChinese = {showChinese}/>
+            <AudioPermission
+              setShowAudioPermission={setShowAudioPermission}
+              showChinese={showChinese}
+            />
           ) : showInstructions ? (
             <div>
               <Instructions
-                showChinese = {showChinese}
-                audioLink = {audioLink.current}
-                setShowInstructions = {setShowInstructions}
+                showChinese={showChinese}
+                audioLink={audioLink.current}
+                setShowInstructions={setShowInstructions}
               />
             </div>
           ) : showPractice ? (
-            <Practice 
-            setShowPractice={setShowPractice}
-            type={type}
-            language={curId > 1 ? "second" : language}
-            question={questions[curId-1]}
-            showChinese={showChinese}
-            recordAudioBlob={recordAudioBlob}/>
+            <Practice
+              setShowPractice={setShowPractice}
+              type={type}
+              language={curId > 1 ? "second" : language}
+              question={questions[curId - 1]}
+              showChinese={showChinese}
+              recordAudioBlob={recordAudioBlob}
+            />
           ) : type === "matching" ? (
             <Question
               curQuestion={questions[curId]}
@@ -247,12 +316,12 @@ const Test = ({ type, language }) => {
               showChinese={showChinese}
             />
           ) : type === "repetition" ? (
-              <Repetition
-                curQuestion={questions[curId]}
-                recordAnswer={recordAnswer}
-                showChinese={showChinese}
-                recordAudioBlob={recordAudioBlob}
-              />
+            <Repetition
+              curQuestion={questions[curId]}
+              recordAnswer={recordAnswer}
+              showChinese={showChinese}
+              recordAudioBlob={recordAudioBlob}
+            />
           ) : (
             <p>page doesn't exist</p>
           )}
@@ -261,16 +330,8 @@ const Test = ({ type, language }) => {
     );
   } else {
     return (
-      <div>
-        <CircularProgress
-          size={"10rem"}
-          sx={{
-            display: "block",
-            margin: "0 auto",
-            position: "relative",
-            top: "15rem",
-          }}
-        />
+      <div className="loadingContainer">
+        <CircularProgress size={75} thickness={3} variant="indeterminate" />
       </div>
     );
   }

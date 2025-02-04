@@ -33,12 +33,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: 20px;
   }
   .indicator {
     text-align: center;
+    width: 100%;
     font-size: 1.5rem;
-    margin-top: 0rem;
-    margin-bottom: 40px;
+    margin-bottom: 25px;
   }
   .pauseButton {
     font-size: 70px;
@@ -167,15 +168,14 @@ body {
 }
 
 .puppyContainer {
-  margin-top: -2rem;
-  width: 40vw;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .instructionPuppy {
-  width: 100%;
+  width: 40vw;
   height: auto;
   border-radius: 8px;
 }
@@ -372,6 +372,7 @@ body {
   font-weight: 700;
   font-size: large;
   margin-bottom: 10px;
+  margin-top: 0px;
 }
 
 .repeatQuestion {
@@ -397,6 +398,17 @@ body {
   border-color: rgb(231, 137, 255) !important;
 }
 
+.loadingContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 @media (max-width: 1000px) {
   .imageContainer {
     margin-left: 15px;
@@ -417,10 +429,6 @@ body {
     #progress {
       height: 14px;
       margin: 0 auto 10px;
-    }
-
-    .testContainer {
-      margin-top: -50px;
     }
 
     .pauseButton {
