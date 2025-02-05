@@ -6,7 +6,6 @@ import IconButton from "@mui/material/IconButton";
 import microphoneDisabled from "../Components/mute.png";
 import microphoneEnabled from "../Components/voice.png";
 import GreenButton from "../Components/GreenButton";
-import redoImg from "../Components/redo.png";
 import { ReactMic } from 'react-mic';
 
 let questionAudio;
