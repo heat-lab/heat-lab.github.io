@@ -74,18 +74,6 @@
     animation: pulse 1s infinite;
   }
 
-  @keyframes pulse {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(0.7);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
   .listeningBar:nth-child(1) {
     height: 25px;
     animation-delay: 0s;
@@ -176,18 +164,6 @@
     animation: pulse 1s infinite;
   }
 
-  @keyframes pulse {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(0.7);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
   .listeningBar:nth-child(1) {
     height: 25px;
     animation-delay: 0s;
@@ -274,6 +250,18 @@
 .recordingContainer.enabled:hover {
   background-color: rgb(33, 102, 199);
   box-shadow: 0px 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.7);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @media (max-height: 440px) {
