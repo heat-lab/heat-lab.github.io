@@ -20,16 +20,16 @@ const Practice = ({setShowPractice, question, type, language, showChinese, recor
 
     const getAudioLink = () => {
         if (type === "repetition") {
-            return language === "CN" ? "https://sites.usc.edu/heatlab/files/2024/11/SR-完成练习后.m4a" : "https://sites.usc.edu/heatlab/files/2024/11/SR-Once-the-practice-is-completed.m4a";
+            return language === "CN" ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-transition.m4a" : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-transition.m4a";
         }
         else if (language === "second") {
-            return "https://sites.usc.edu/heatlab/files/2024/11/RV-Transition-to-the-real-test-items-w-audio-2.m4a"
+            return "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-transition.m4a"
         }
         else if (language === "EN") {
-            return "https://sites.usc.edu/heatlab/files/2024/11/RV-English-Transition-to-the-real-test-items-w-audio.m4a";
+            return "https://non-question-links.s3.us-east-2.amazonaws.com/english-matching-transition.m4a";
         }
         else {
-            return "https://sites.usc.edu/heatlab/files/2024/11/RV-Transition-to-the-real-test-items-w-audio.m4a";
+            return "https://non-question-links.s3.us-east-2.amazonaws.com/chiense-matching-transition.m4a";
         }
     }
 

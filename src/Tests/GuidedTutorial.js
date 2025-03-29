@@ -44,7 +44,7 @@ const GuidedTutorial = ({setShowGuidedTutorial, showChinese, lang}) => {
                 }, 1000);
                 } else {
                     if (tipNum > 4) {
-                        questionAudio = new Audio(lang === "CN" ? "https://sites.usc.edu/heatlab/files/2024/12/SR-当你看到麦克风时new.m4a" : "https://bpb-us-w1.wpmucdn.com/sites.usc.edu/dist/b/837/files/2024/11/SR-When-you-see-the-blue-microphone.m4a");
+                        questionAudio = new Audio(lang === "CN" ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-practice.m4a" : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-practice.m4a");
                         questionAudio.addEventListener("play", () => {
                         setAudioPlaying(true);
                         });

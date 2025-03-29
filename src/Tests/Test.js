@@ -34,20 +34,20 @@ const Test = ({ type, language }) => {
 
   let ReinforcementAudio = [
     [
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-English-14-way-through-the-test-w-audio.m4a",
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-14-way-through-the-test-w-audio.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement1.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement1.m4a",
     ],
     [
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-Midway-through-the-test-w-audio.m4a",
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-Midway-through-the-test-w-audio.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement2.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement2.m4a",
     ],
     [
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-English-34-way-through-the-test-w-audio.m4a",
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-34-way-through-the-test-w-audio-2.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement3.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement3.m4a",
     ],
     [
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-End-of-the-test-narration-w-audio.m4a",
-      "https://sites.usc.edu/heatlab/files/2024/11/RV-End-of-the-test-narration-w-audio.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement4.m4a",
+      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement4.m4a",
     ],
   ];
 
@@ -68,7 +68,7 @@ const Test = ({ type, language }) => {
     }
     if (type === "matching" && language === "CN" && curId + 1 === 29) {
       audioLink.current =
-        "https://sites.usc.edu/heatlab/files/2024/11/RV-Quantifier-test-instruction-w-audio.m4a";
+        "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-instructions.m4a";
       setShowInstructions(true);
       setShowPractice(true);
       setCurId((prevId) => prevId + 2);
@@ -230,13 +230,13 @@ const Test = ({ type, language }) => {
     if (type === "matching") {
       audioLink.current =
         language === "CN"
-          ? "https://sites.usc.edu/heatlab/files/2024/11/RV-Mandarin-test-instruction-w-audio.m4a"
-          : "https://sites.usc.edu/heatlab/files/2024/11/RV-English-test-instruction-w-audio.m4a";
+          ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-matching-instructions.m4a"
+          : "https://non-question-links.s3.us-east-2.amazonaws.com/english-matching-instructions.m4a";
     } else if (type === "repetition") {
       audioLink.current =
         language === "CN"
-          ? "https://sites.usc.edu/heatlab/files/2024/11/SR-介绍场景.m4a"
-          : "https://sites.usc.edu/heatlab/files/2024/11/SR-Introducing-Scenario.m4a";
+          ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-instructions.m4a"
+          : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-instructions.m4a";
       setShowAudioPermission(true);
     }
   }, [type, language]);
