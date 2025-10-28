@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
-import "./Home.css";
 import TextField from "@mui/material/TextField";
-import { useNavigate } from "react-router-dom";
 import TranslationButton from "../Components/TranslationButton";
 import BlueButton from "../Components/BlueButton";
+import "./Home.css";
 
 const UserValidation = () => {
   const [username, setUsername] = useState(null);
