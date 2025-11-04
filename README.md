@@ -1,3 +1,9 @@
-# MERLS 3.0
-<br>
-MERLS 3.0 made with React and deployed on Github pages
+## Frontend API Integration
+
+All frontend API requests now target the production backend, configured in `src/config.js`:
+- `/users` — user validation
+- `/questions` — get/display test questions
+- `/export` — report/download
+- `/audio-upload` — audio file submission
+
+To run locally or switch servers, simply update the value in `config.js`.
