@@ -5,6 +5,7 @@ import TextField from "@mui/material/TextField";
 import TranslationButton from "../Components/TranslationButton";
 import BlueButton from "../Components/BlueButton";
 import "./Home.css";
+import { API_BASE_URL } from "../config"; // <-- Add this line
 
 const UserValidation = () => {
   const [username, setUsername] = useState(null);
@@ -30,8 +31,7 @@ const UserValidation = () => {
     setUsername(false);
     try {
       let response = await fetch(
-        "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getUsers?participant_id=" +
-          username,
+        `${API_BASE_URL}/users?participant_id=${username}`,
         {
           method: "GET",
           headers: {
@@ -46,15 +46,12 @@ const UserValidation = () => {
           const queryParam = `?cn-zw=${chineseLoginPage ? "true" : "false"}`;
           navigate(`/test-selection${queryParam}`);
         } else {
-          console.error("Failed to validate user");
           alertLoginFailure();
         }
       } else {
-        console.error("Failed to validate user");
         alertLoginFailure();
       }
     } catch (error) {
-      console.error("Error validating user:", error);
       alertLoginFailure();
     }
   };
