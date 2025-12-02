@@ -1,6 +1,8 @@
 import { React, useState, useRef, useEffect } from "react";
 import { ReactMic } from "react-mic";
 import "./StoryTest.css";
+import VideoRecorder from "../Components/VideoRecorder";
+import VideoUpload from "../Components/VideoUpload";
 
 const Retell = ({ imageLinks, showChinese, beforeUnload, uploadToLambda, type, disableOption }) => {
   //microphone recording
