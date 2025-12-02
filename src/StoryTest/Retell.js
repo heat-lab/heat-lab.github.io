@@ -2,13 +2,18 @@ import React, { useEffect, useRef, useState } from "react";
 import { ReactMic } from "react-mic";
 import BlueButton from "../Components/BlueButton";
 import TranslationButton from "../Components/TranslationButton";
-import { API_BASE_URL } from "../config";
 import "./StoryTest.css";
 import VideoRecorder from "../Components/VideoRecorder";
 import VideoUpload from "../Components/VideoUpload";
 
-
-const Retell = ({ imageLinks, showChinese, setShowChinese, uploadToLambda, type, disableOption }) => {
+const Retell = ({
+  imageLinks,
+  showChinese,
+  setShowChinese,
+  uploadToLambda,
+  type,
+  disableOption,
+}) => {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -23,13 +28,11 @@ const Retell = ({ imageLinks, showChinese, setShowChinese, uploadToLambda, type,
   const audioRef = useRef(null);
 
   useEffect(() => {
-    // Set initial timer values; you can adjust if needed
     setTimeLeft(30);
     setMaxTime(3);
   }, []);
 
   useEffect(() => {
-    // Clean up audio and timers when unmounting
     return () => {
       if (audioRef.current instanceof Audio) {
         audioRef.current.pause();
@@ -53,8 +56,7 @@ const Retell = ({ imageLinks, showChinese, setShowChinese, uploadToLambda, type,
     setRecording(true);
     setTimeLeft(30);
 
-    // Countdown timer for recording time
-    clearTimeout(countdownRef.current);
+    clearInterval(countdownRef.current);
     countdownRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -118,7 +120,9 @@ const Retell = ({ imageLinks, showChinese, setShowChinese, uploadToLambda, type,
       ) : (
         <div
           className={
-            disableOption ? "recordingContainer disabled" : "recordingContainer enabled"
+            disableOption
+              ? "recordingContainer disabled"
+              : "recordingContainer enabled"
           }
           onClick={disableOption ? undefined : startRecording}
         >
@@ -154,12 +158,8 @@ const Retell = ({ imageLinks, showChinese, setShowChinese, uploadToLambda, type,
         </div>
       )}
 
-      {/* New video options block */}
       <div style={{ marginTop: 32 }}>
         <h2>{showChinese ? "视频回答选项" : "Video response options"}</h2>
-        {/* These components must exist in src/Components */}
-        {/* VideoRecorder records in-browser and uploads */}
-        {/* VideoUpload lets user select an existing video file and upload */}
         <VideoRecorder />
         <VideoUpload />
       </div>
