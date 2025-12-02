@@ -4,259 +4,267 @@ import { API_BASE_URL } from "../config";
 const VIDEO_MIME = "video/webm"; // typical MediaRecorder output
 
 const VideoRecorder = () => {
-const videoRef = useRef(null);
-const mediaRecorderRef = useRef(null);
-const [stream, setStream] = useState(null);
-const [recording, setRecording] = useState(false);
-const [recordedBlob, setRecordedBlob] = useState(null);
-const [previewUrl, setPreviewUrl] = useState("");
-const [uploading, setUploading] = useState(false);
-const [error, setError] = useState("");
+  const [devices, setDevices] = useState([]);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const [streams, setStreams] = useState([]);
+  const [recorders, setRecorders] = useState([]);
+  const [recording, setRecording] = useState(false);
+  const [recordedBlobs, setRecordedBlobs] = useState([]); // one blob per camera
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
 
-useEffect(() => {
-const getStream = async () => {
-try {
-const s = await navigator.mediaDevices.getUserMedia({
-video: true,
-audio: true,
-});
-setStream(s);
-if (videoRef.current) {
-videoRef.current.srcObject = s;
-}
-} catch (err) {
-setError("Could not access camera/microphone: " + err.message);
-}
-};
-getStream();
+  const videoRefs = useRef([]);
 
-text
-return () => {
-  if (stream) {
-    stream.getTracks().forEach((t) => t.stop());
-  }
-};
-}, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // enumerate cameras on mount
+  useEffect(() => {
+    const initDevices = async () => {
+      try {
+        const allDevices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = allDevices.filter((d) => d.kind === "videoinput");
+        setDevices(videoDevices);
+        // default: select all cameras
+        setSelectedDeviceIds(videoDevices.map((d) => d.deviceId));
+      } catch (err) {
+        setError("Could not list cameras: " + err.message);
+      }
+    };
 
-const startRecording = () => {
-if (!stream) {
-setError("No media stream available.");
-return;
-}
-setError("");
-const chunks = [];
-const mr = new MediaRecorder(stream, { mimeType: VIDEO_MIME });
-mediaRecorderRef.current = mr;
+    initDevices();
+  }, []);
 
-text
-mr.ondataavailable = (e) => {
-  if (e.data && e.data.size > 0) {
-    chunks.push(e.data);
-  }
-};
+  // attach streams to video elements
+  useEffect(() => {
+    streams.forEach((stream, index) => {
+      if (videoRefs.current[index]) {
+        videoRefs.current[index].srcObject = stream;
+      }
+    });
+  }, [streams]);
 
-mr.onstop = () => {
-  const blob = new Blob(chunks, { type: VIDEO_MIME });
-  setRecordedBlob(blob);
-  const url = URL.createObjectURL(blob);
-  setPreviewUrl(url);
-};
+  const toggleDeviceSelection = (deviceId) => {
+    setError("");
+    setRecordedBlobs([]);
+    setPreviewUrls([]);
+    setSelectedDeviceIds((prev) =>
+      prev.includes(deviceId)
+        ? prev.filter((id) => id !== deviceId)
+        : [...prev, deviceId]
+    );
+  };
 
-mr.start();
-setRecording(true);
-};
+  const startRecording = async () => {
+    if (recording) return;
+    if (!selectedDeviceIds.length) {
+      setError("Please select at least one camera to record.");
+      return;
+    }
+    setError("");
+    setRecordedBlobs([]);
+    setPreviewUrls([]);
 
-const stopRecording = () => {
-if (mediaRecorderRef.current && recording) {
-mediaRecorderRef.current.stop();
-setRecording(false);
-}
-};
+    try {
+      // Get one stream per selected camera
+      const newStreams = [];
+      for (const deviceId of selectedDeviceIds) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: deviceId } },
+          audio: true,
+        });
+        newStreams.push(stream);
+      }
+      setStreams(newStreams);
 
-const uploadRecording = async () => {
-if (!recordedBlob) {
-setError("No recording to upload.");
-return;
-}
-setError("");
-setUploading(true);
+      // Create one MediaRecorder per stream
+      const newRecorders = [];
+      const allChunks = newStreams.map(() => []);
+      newStreams.forEach((stream, idx) => {
+        const mr = new MediaRecorder(stream, { mimeType: VIDEO_MIME });
 
-text
-try {
-  const file = new File([recordedBlob], "recording.webm", {
-    type: VIDEO_MIME,
-  });
+        mr.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            allChunks[idx].push(e.data);
+          }
+        };
 
-  const formData = new FormData();
-  formData.append("video", file);
-  formData.append(
-    "participant_id",
-    localStorage.getItem("username") || ""
+        mr.onstop = () => {
+          const blob = new Blob(allChunks[idx], { type: VIDEO_MIME });
+          setRecordedBlobs((prev) => {
+            const copy = [...prev];
+            copy[idx] = blob;
+            return copy;
+          });
+          const url = URL.createObjectURL(blob);
+          setPreviewUrls((prev) => {
+            const copy = [...prev];
+            copy[idx] = url;
+            return copy;
+          });
+        };
+
+        newRecorders.push(mr);
+      });
+
+      setRecorders(newRecorders);
+
+      // Start all recorders together
+      newRecorders.forEach((mr) => mr.start());
+      setRecording(true);
+    } catch (err) {
+      setError("Could not start recording: " + err.message);
+    }
+  };
+
+  const stopRecording = () => {
+    if (!recording) return;
+    recorders.forEach((mr) => {
+      if (mr && mr.state !== "inactive") {
+        mr.stop();
+      }
+    });
+    streams.forEach((stream) =>
+      stream.getTracks().forEach((t) => t.stop())
+    );
+    setRecording(false);
+    setStreams([]);
+    setRecorders([]);
+  };
+
+  const uploadRecording = async () => {
+    if (!recordedBlobs.length) {
+      setError("No recordings to upload.");
+      return;
+    }
+    setError("");
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+
+      recordedBlobs.forEach((blob, idx) => {
+        if (!blob) return;
+        const file = new File([blob], `recording_cam_${idx}.webm`, {
+          type: VIDEO_MIME,
+        });
+        formData.append("videos", file);
+        formData.append(`camera_index_${idx}`, String(idx));
+      });
+
+      formData.append(
+        "participant_id",
+        localStorage.getItem("username") || ""
+      );
+      formData.append("source", "browser-multi-camera");
+
+      const res = await fetch(`${API_BASE_URL}/video-upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Upload failed");
+      }
+
+      await res.json();
+      alert("All recordings uploaded successfully.");
+    } catch (err) {
+      setError("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <h3>Record video (multiple cameras)</h3>
+
+      {/* Camera selection */}
+      {devices.length === 0 && (
+        <p>No cameras detected. Please connect at least one camera.</p>
+      )}
+      {devices.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <p>Select cameras to record from:</p>
+          {devices.map((d) => (
+            <label key={d.deviceId} style={{ display: "block" }}>
+              <input
+                type="checkbox"
+                checked={selectedDeviceIds.includes(d.deviceId)}
+                onChange={() => toggleDeviceSelection(d.deviceId)}
+              />
+              {d.label || "Camera"}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {/* Live previews while recording */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {selectedDeviceIds.map((deviceId, index) => (
+          <video
+            key={deviceId}
+            ref={(el) => (videoRefs.current[index] = el)}
+            autoPlay
+            playsInline
+            muted
+            style={{
+              width: "240px",
+              height: "180px",
+              border: "1px solid #ccc",
+              backgroundColor: "#000",
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        {!recording && (
+          <button onClick={startRecording} disabled={!selectedDeviceIds.length}>
+            Start recording
+          </button>
+        )}
+        {recording && (
+          <button onClick={stopRecording}>
+            Stop recording
+          </button>
+        )}
+      </div>
+
+      {/* Recorded previews */}
+      {previewUrls.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <p>Recorded previews (one per camera):</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {previewUrls.map(
+              (url, idx) =>
+                url && (
+                  <div key={idx}>
+                    <p>Camera {idx + 1}</p>
+                    <video
+                      src={url}
+                      controls
+                      style={{
+                        width: "240px",
+                        height: "180px",
+                        border: "1px solid #ccc",
+                      }}
+                    />
+                  </div>
+                )
+            )}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <button onClick={uploadRecording} disabled={uploading}>
+              {uploading ? "Uploading..." : "Upload all recordings"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+    </div>
   );
-  formData.append("source", "browser-recording");
-
-  const res = await fetch(`${API_BASE_URL}/video-upload`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(txt || "Upload failed");
-  }
-
-  await res.json();
-  alert("Recording uploaded successfully.");
-} catch (err) {
-  setError("Upload failed: " + err.message);
-} finally {
-  setUploading(false);
-}
-};
-
-return (
-<div style={{ marginTop: 24 }}>
-<h3>Record a video</h3>
-<video
-ref={videoRef}
-autoPlay
-playsInline
-muted
-style={{ width: "320px", height: "240px", border: "1px solid #ccc" }}
-/>
-<div style={{ marginTop: 8 }}>
-{!recording && (
-<button onClick={startRecording} disabled={!stream}>
-Start recording
-</button>
-)}
-{recording && (
-<button onClick={stopRecording}>
-Stop recording
-</button>
-)}
-</div>
-{recordedBlob && (
-<div style={{ marginTop: 12 }}>
-<p>Preview:</p>
-<video
-src={previewUrl}
-controls
-style={{
-width: "320px",
-height: "240px",
-border: "1px solid #ccc",
-}}
-/>
-<div style={{ marginTop: 8 }}>
-<button onClick={uploadRecording} disabled={uploading}>
-{uploading ? "Uploading..." : "Upload recording"}
-</button>
-</div>
-</div>
-)}
-{error && <p style={{ color: "red" }}>{error}</p>}
-</div>
-);
 };
 
 export default VideoRecorder;
-
-3) Add VideoUpload.js
-Create this file:
-
-src/Components/VideoUpload.js
-
-Paste this:
-
-import React, { useState } from "react";
-import { API_BASE_URL } from "../config";
-
-const DESIRED_TYPE = "video/mp4"; // backend can convert if different
-
-const VideoUpload = () => {
-const [file, setFile] = useState(null);
-const [error, setError] = useState("");
-const [uploading, setUploading] = useState(false);
-const [uploadedUrl, setUploadedUrl] = useState("");
-
-const handleFileChange = (e) => {
-setError("");
-setUploadedUrl("");
-const f = e.target.files;
-if (!f) return;
-
-text
-if (f.type !== DESIRED_TYPE) {
-  setError(
-    `This file is ${f.type}. Preferred format is ${DESIRED_TYPE}. You can still upload and the server may convert it.`
-  );
-}
-setFile(f);
-};
-
-const handleUpload = async () => {
-if (!file) {
-setError("Please choose a video first.");
-return;
-}
-setError("");
-setUploading(true);
-setUploadedUrl("");
-
-text
-try {
-  const formData = new FormData();
-  formData.append("video", file);
-  formData.append(
-    "participant_id",
-    localStorage.getItem("username") || ""
-  );
-
-  const res = await fetch(`${API_BASE_URL}/video-upload`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(txt || "Upload failed");
-  }
-
-  const data = await res.json();
-  if (data.url) {
-    setUploadedUrl(data.url);
-  }
-} catch (err) {
-  setError(`Upload error: ${err.message}`);
-} finally {
-  setUploading(false);
-}
-};
-
-return (
-<div style={{ marginTop: 24 }}>
-<h3>Upload a video file</h3>
-<input type="file" accept="video/*" onChange={handleFileChange} />
-{file && (
-<p>
-Selected: {file.name} ({file.type || "unknown type"})
-</p>
-)}
-{error && <p style={{ color: "red" }}>{error}</p>}
-<button onClick={handleUpload} disabled={!file || uploading}>
-{uploading ? "Uploading..." : "Upload video"}
-</button>
-{uploadedUrl && (
-<p>
-Uploaded! File URL:{" "}
-<a href={uploadedUrl} target="_blank" rel="noreferrer">
-Open
-</a>
-</p>
-)}
-</div>
-);
-};
-
-export default VideoUpload;
