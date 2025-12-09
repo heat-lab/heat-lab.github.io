@@ -13,9 +13,11 @@ import AudioPermission from "./AudioPermission";
 import ReinforcementPage from "./ReinforcementPage";
 import CompletionPage from "./CompletionPage";
 import GreenButton from "../Components/GreenButton";
+import { APIBASEURL } from "../config";
 
-const LAMBDA_API_ENDPOINT =
-  "https://2inehosoqi.execute-api.us-east-2.amazonaws.com/prod/audio-upload";
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
+
+
 
 const Test = ({ type, language }) => {
   const [questions, setQuestions] = useState([]);
