@@ -17,8 +17,6 @@ import { APIBASEURL } from "../config";
 
 const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
-
-
 const Test = ({ type, language }) => {
   const [questions, setQuestions] = useState([]);
   const [curId, setCurId] = useState(1);
@@ -112,7 +110,7 @@ const Test = ({ type, language }) => {
         bucketName: "merls-audio",
       };
 
-      const response = await fetch(LAMBDA_API_ENDPOINT, {
+      const response = await fetch(LAMBDAAPIENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -140,8 +138,7 @@ const Test = ({ type, language }) => {
       const username = localStorage.getItem("username");
       async function submitAnswersToDB() {
         console.log("type:", type);
-        let endpoint =
-          "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions";
+        let endpoint = `${APIBASEURL}/questions`;
         let requestBody;
 
         if (type === "matching") {
@@ -184,6 +181,9 @@ const Test = ({ type, language }) => {
 
         const response = await fetch(endpoint, {
           method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(requestBody),
         });
 
@@ -210,10 +210,9 @@ const Test = ({ type, language }) => {
   useEffect(() => {
     async function fetchQuestionList() {
       const response = await fetch(
-        "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions?language=" +
-          language +
-          "&type=" +
-          type,
+        `${APIBASEURL}/questions?language=${encodeURIComponent(
+          language
+        )}&type=${encodeURIComponent(type)}`,
         {
           method: "GET",
           headers: {
@@ -226,7 +225,7 @@ const Test = ({ type, language }) => {
       setQuestions(questionList);
     }
     fetchQuestionList();
-  }, []);
+  }, [language, type]);
 
   useEffect(() => {
     if (type === "matching") {
@@ -259,19 +258,16 @@ const Test = ({ type, language }) => {
             setShowChinese={setShowChinese}
           />
         </AppBar>
-        { localStorage.getItem("username") === "lucy" ? (
+        {localStorage.getItem("username") === "lucy" ? (
           <div className="debugAdvanceButton">
             <GreenButton
               textEnglish="next part"
               onClick={() => {
-                setCurId((prev) => prev+1);
+                setCurId((prev) => prev + 1);
               }}
             />
           </div>
-        ) : (
-          null
-        )
-        }
+        ) : null}
         <Container className="testContainer">
           {completed ? (
             <CompletionPage
@@ -284,7 +280,9 @@ const Test = ({ type, language }) => {
             <ReinforcementPage
               showChinese={showChinese}
               audioLink={
-                ReinforcementAudio[reinforcementID][language === "EN" ? 0 : 1]
+                ReinforcementAudio[reinforcementID][
+                  language === "EN" ? 0 : 1
+                ]
               }
               imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
               setShowReinforcement={setShowReinforcementPage}
