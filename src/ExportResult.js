@@ -86,16 +86,16 @@ const ExportResult = () => {
                     ? "请选择想要下载报告的语言： "
                     : "Please select the language you want to download the report in: "}
                 </span>
-                <FormControlLabel value={"EN"} control={<Radio />} label="EN" />
-                <FormControlLabel value={"CN"} control={<Radio />} label="CN" />
+                <FormControlLabel value="EN" control={<Radio />} label="EN" />
+                <FormControlLabel value="CN" control={<Radio />} label="CN" />
               </RadioGroup>
             </li>
           </ol>
         </FormControl>
         <BlueButton
           showChinese={showChinese}
-          textEnglish={"Download"}
-          textChinese={"下载"}
+          textEnglish="Download"
+          textChinese="下载"
           onClick={downloadReport}
           disabled={!(username && language)}
         />
