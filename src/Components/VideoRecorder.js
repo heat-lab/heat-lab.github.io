@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "../config";
+import { APIBASEURL } from "../config";
 
 const VIDEO_MIME = "video/webm"; // typical MediaRecorder output
 
@@ -156,7 +156,7 @@ const VideoRecorder = () => {
       );
       formData.append("source", "browser-multi-camera");
 
-      const res = await fetch(`${API_BASE_URL}/video-upload`, {
+      const res = await fetch(`${APIBASEURL}/video-upload`, {
         method: "POST",
         body: formData,
       });
