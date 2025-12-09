@@ -15,7 +15,8 @@ import CompletionPage from "../Tests/CompletionPage";
 import Confirmation from "../Components/Confirmation";
 import Instructions from "./Instructions";
 import AudioPermission from "../Tests/AudioPermission";
-import { APIBASEURL } from "../config";
+
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
 let questionAudio;
 let audioLink;
