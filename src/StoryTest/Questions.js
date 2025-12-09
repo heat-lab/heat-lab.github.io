@@ -70,10 +70,7 @@ const Questions = ({
         <div className="space" />
       )}
       {recording ? (
-        <div
-          className="recordingActionContainer"
-          onClick={stopRecording}
-        >
+        <div className="recordingActionContainer" onClick={stopRecording}>
           <div className="recordingContainer">
             <div className="listeningBar" />
             <div className="listeningBar" />
@@ -85,7 +82,9 @@ const Questions = ({
             <div className="listeningBar" />
             <div className="listeningBar" />
           </div>
-          {showChinese ? "（再次点击提交答案）" : "(click again to submit answer)"}
+          {showChinese
+            ? "（再次点击提交答案）"
+            : "(click again to submit answer)"}
         </div>
       ) : disableOption ? (
         <div className="recordingContainer disabled">
