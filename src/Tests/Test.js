@@ -32,7 +32,7 @@ const Test = ({ type, language }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  let ReinforcementAudio = [
+  const ReinforcementAudio = [
     [
       "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement1.m4a",
       "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement1.m4a",
@@ -51,11 +51,11 @@ const Test = ({ type, language }) => {
     ],
   ];
 
-  let audioLink = useRef("");
+  const audioLink = useRef("");
 
   // record answer and go to next question
   const recordAnswer = (questionId, answerId) => {
-    // show the reinforcement page when the test is half through
+    // show the reinforcement page when the test is part-way through
     if (curId === Math.floor(questions.length / 4)) {
       setShowReinforcementPage(true);
       setReinforcementID(0);
@@ -66,6 +66,7 @@ const Test = ({ type, language }) => {
       setShowReinforcementPage(true);
       setReinforcementID(2);
     }
+
     if (type === "matching" && language === "CN" && curId + 1 === 29) {
       audioLink.current =
         "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-instructions.m4a";
@@ -75,8 +76,9 @@ const Test = ({ type, language }) => {
     } else {
       setCurId((prevId) => prevId + 1);
     }
+
     console.log("submitting question id:", curId + 1);
-    setAnswers({ ...answers, [questionId]: answerId });
+    setAnswers((prev) => ({ ...prev, [questionId]: answerId }));
   };
 
   const recordAudioBlob = (questionId, blob) => {
@@ -94,7 +96,6 @@ const Test = ({ type, language }) => {
 
   const uploadBlobToLambda = async (blob, questionId) => {
     try {
-      // Convert blob to base64
       const reader = new FileReader();
       const base64Data = await new Promise((resolve, reject) => {
         reader.onload = () => resolve(reader.result);
@@ -106,7 +107,7 @@ const Test = ({ type, language }) => {
         fileType: "audio/webm",
         audioData: base64Data,
         userId: localStorage.getItem("username"),
-        questionId: questionId,
+        questionId,
         bucketName: "merls-audio",
       };
 
@@ -136,16 +137,17 @@ const Test = ({ type, language }) => {
   const submitAnswers = () => {
     try {
       const username = localStorage.getItem("username");
+
       async function submitAnswersToDB() {
         console.log("type:", type);
-        let endpoint = `${APIBASEURL}/questions`;
+        const endpoint = `${APIBASEURL}/questions`;
         let requestBody;
 
         if (type === "matching") {
           requestBody = {
             participantId: username,
             userAns: answers,
-            isEN: language === "CN" ? false : true,
+            isEN: language !== "CN",
             isAudioTest: false,
             audioSubmissionList: null,
             submissionType: "matching",
@@ -170,7 +172,7 @@ const Test = ({ type, language }) => {
           requestBody = {
             participantId: username,
             audioSubmissionList: audioUrls,
-            isEN: language === "CN" ? false : true,
+            isEN: language !== "CN",
             isAudioTest: true,
             userAns: null,
             submissionType: "repetition",
@@ -194,6 +196,7 @@ const Test = ({ type, language }) => {
           alert("Failed to submit answers");
         }
       }
+
       submitAnswersToDB();
     } catch (error) {
       alert("Failed to submit answers");
@@ -242,7 +245,7 @@ const Test = ({ type, language }) => {
     }
   }, [type, language]);
 
-  let completed = curId === questions.length;
+  const completed = curId === questions.length;
 
   if (questions.length > 0) {
     return (
@@ -323,18 +326,18 @@ const Test = ({ type, language }) => {
               recordAudioBlob={recordAudioBlob}
             />
           ) : (
-            <p>page doesn't exist</p>
+            <p>page does not exist</p>
           )}
         </Container>
       </div>
     );
-  } else {
-    return (
-      <div className="loadingContainer">
-        <CircularProgress size={75} thickness={3} variant="indeterminate" />
-      </div>
-    );
   }
+
+  return (
+    <div className="loadingContainer">
+      <CircularProgress size={75} thickness={3} variant="indeterminate" />
+    </div>
+  );
 };
 
 export default Test;
