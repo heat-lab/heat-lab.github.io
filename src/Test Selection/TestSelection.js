@@ -4,14 +4,19 @@ import AppBar from "@mui/material/AppBar";
 import TranslationButton from "../Components/TranslationButton";
 import Confirmation from "../Components/Confirmation";
 import "./TestSelection.css";
+import { APIBASEURL } from "../config";
 
 const LanguageSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [englishListeningCompleted, setEnglishListeningCompleted] = useState(false);
-  const [chineseListeningCompleted, setChineseListeningCompleted] = useState(false);
-  const [englishRepetitionCompleted, setEnglishRepetitionCompleted] = useState(false);
-  const [chineseRepetitionCompleted, setChineseRepetitionCompleted] = useState(false);
+  const [englishListeningCompleted, setEnglishListeningCompleted] =
+    useState(false);
+  const [chineseListeningCompleted, setChineseListeningCompleted] =
+    useState(false);
+  const [englishRepetitionCompleted, setEnglishRepetitionCompleted] =
+    useState(false);
+  const [chineseRepetitionCompleted, setChineseRepetitionCompleted] =
+    useState(false);
   const [englishStoryCompleted, setEnglishStoryCompleted] = useState(false);
   const [selectedButton, setSelectedButton] = useState(0);
   const [showChinese, setShowChinese] = useState(true);
@@ -21,7 +26,7 @@ const LanguageSelection = () => {
     "/matching-test-english",
     "/repetition-test-chinese",
     "/repetition-test-english",
-    "/story-test-english"
+    "/story-test-english",
   ];
 
   useEffect(() => {
@@ -36,7 +41,9 @@ const LanguageSelection = () => {
       const fetchUserData = async () => {
         try {
           const response = await fetch(
-            `https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getUsers?participant_id=${username}`
+            `${APIBASEURL}/users?participantid=${encodeURIComponent(
+              username
+            )}`
           );
           const data = await response.json();
           if (data && data.length > 0 && data[0].is_active) {
@@ -59,9 +66,16 @@ const LanguageSelection = () => {
     <div className="languageSelection">
       <AppBar className="titleContainer">
         <h1 className="selectionTitle">
-          {showChinese ? <>请选择下面的测试来开始</> : <>Please select a test below to start</>}
+          {showChinese ? (
+            <>请选择下面的测试来开始</>
+          ) : (
+            <>Please select a test below to start</>
+          )}
         </h1>
-        <TranslationButton showChinese={showChinese} setShowChinese={setShowChinese} />
+        <TranslationButton
+          showChinese={showChinese}
+          setShowChinese={setShowChinese}
+        />
       </AppBar>
       <div className="testSelectionGroup">
         {/* ... the rest of your UI for selecting and starting tests ... */}
