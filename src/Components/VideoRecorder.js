@@ -151,7 +151,7 @@ const VideoRecorder = () => {
       });
 
       formData.append(
-        "participant_id",
+        "participantid",
         localStorage.getItem("username") || ""
       );
       formData.append("source", "browser-multi-camera");
