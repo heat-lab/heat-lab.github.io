@@ -15,6 +15,7 @@ import CompletionPage from "../Tests/CompletionPage";
 import Confirmation from "../Components/Confirmation";
 import Instructions from "./Instructions";
 import AudioPermission from "../Tests/AudioPermission";
+import { APIBASEURL } from "../config";
 
 let questionAudio;
 let audioLink;
@@ -55,8 +56,7 @@ let retellingLinks = [
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
 ];
 
-const LAMBDA_API_ENDPOINT =
-  "https://2inehosoqi.execute-api.us-east-2.amazonaws.com/prod/audio-upload";
+const LAMBDA_API_ENDPOINT = `${APIBASEURL}/audio-upload`;
 
 const narration_instruction =
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
@@ -112,7 +112,7 @@ const StoryTest = ({ language }) => {
     clearTimeout(timeoutRef.current);
     //dont initiate countdown if on loading screen or audio permission
     if (showLoading || showAudioPermission) {
-      return
+      return;
     }
     if (countDown > 0) {
       // timeoutRef is used here so we can pause the countDown by clearing timeout
@@ -127,15 +127,15 @@ const StoryTest = ({ language }) => {
     }
 
     return () => clearTimeout(timeoutRef.current);
-  }, [countDown, showLoading, showAudioPermission]);
+  }, [countDown, showLoading, showAudioPermission, audioPlaying]);
 
   // fetching story data
   useEffect(() => {
     async function fetchStoryData() {
       const response = await fetch(
-        "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions?language=" +
-          language +
-          "&type=story",
+        `${APIBASEURL}/questions?language=${encodeURIComponent(
+          language
+        )}&type=story`,
         {
           method: "GET",
           headers: {
@@ -164,7 +164,7 @@ const StoryTest = ({ language }) => {
       setTotalStages(total);
     }
     fetchStoryData();
-  }, []);
+  }, [language]);
 
   const recordAudioUrl = (questionId, s3Url, type) => {
     if (!questionId || !s3Url) {
@@ -202,7 +202,7 @@ const StoryTest = ({ language }) => {
 
   // upload audio to s3, depends on type
   const uploadToLambda = async (recordedBlob, type) => {
-    setUploadsInProgress(prev => prev + 1);
+    setUploadsInProgress((prev) => prev + 1);
     const base64Data = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -237,17 +237,14 @@ const StoryTest = ({ language }) => {
     if (data.url) {
       recordAudioUrl(questionId, data.url, type);
     }
-    setUploadsInProgress(prev => prev - 1);
+    setUploadsInProgress((prev) => prev - 1);
     return data.url;
   };
 
   const submitAnswers = async () => {
     const username = localStorage.getItem("username");
-    // console.log("type:", type);
-    let endpoint =
-        "https://ue2r8y56oe.execute-api.us-east-2.amazonaws.com/default/getQuestions";
-    let requestBody;
-    requestBody = {
+    let endpoint = `${APIBASEURL}/questions`;
+    let requestBody = {
       participantId: username,
       userAns: null,
       isEN: language === "CN" ? false : true,
@@ -260,6 +257,9 @@ const StoryTest = ({ language }) => {
 
     const response = await fetch(endpoint, {
       method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(requestBody),
     });
 
@@ -269,7 +269,6 @@ const StoryTest = ({ language }) => {
     } else {
       alert("Failed to submit answers");
     }
-
   };
 
   //function to play instruction/story audio
@@ -317,7 +316,6 @@ const StoryTest = ({ language }) => {
     } else if (stage === 2) {
       audioLink = retellingLinks[subStage - 1];
     } else if (stage === 4) {
-      // audioLink = questions[subStage - 1].link;
       audioLink = questions[subStage - 1].question_audio;
     } else {
       audioLink = "";
@@ -376,7 +374,7 @@ const StoryTest = ({ language }) => {
         if (currentStory === stories.length) {
           //end test
           setCompleted(true);
-          setAudioPlaying(true); //just to make sure that this componenet's audio function doesn't play, as the audio is going to be played in the Completion page
+          setAudioPlaying(true); //just to make sure that this component's audio function doesn't play, as the audio is going to be played in the Completion page
           console.log("test ending");
         } else {
           setQuestions(stories[currentStory].questions);
@@ -421,8 +419,11 @@ const StoryTest = ({ language }) => {
     );
   } else if (showAudioPermission) {
     return (
-      <AudioPermission showChinese={showChinese} setShowAudioPermission={setShowAudioPermission}/>
-    )
+      <AudioPermission
+        showChinese={showChinese}
+        setShowAudioPermission={setShowAudioPermission}
+      />
+    );
   } else if (completed) {
     return (
       <div id="testPage">
@@ -583,4 +584,5 @@ const StoryTest = ({ language }) => {
     );
   }
 };
+
 export default StoryTest;
