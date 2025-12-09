@@ -20,7 +20,7 @@ import { APIBASEURL } from "../config";
 let questionAudio;
 let audioLink;
 
-const response = await fetch(LAMBDAAPIENDPOINT, { ... });
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
 const narrationInstruction =
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
