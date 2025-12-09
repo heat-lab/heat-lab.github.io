@@ -10,7 +10,6 @@ const Questions = ({
   type,
   disableOption,
 }) => {
-  //microphone recording
   const [recording, setRecording] = useState(false);
   const [finishedProcessing, setFinishedProcessing] = useState(false);
   const micRef = useRef(null);
@@ -29,8 +28,7 @@ const Questions = ({
       return;
     }
     const url = recordedBlob.blobURL;
-    console.log(url);
-    //recordAudioBlob(questionIdRef.current, recordedBlob);
+    console.log("Local recording URL:", url);
     const s3Url = await uploadToLambda(recordedBlob, type);
     console.log("Recording stored at:", s3Url);
   };
@@ -45,7 +43,7 @@ const Questions = ({
       beforeUnload();
       onFinish();
     }
-  }, [finishedProcessing]);
+  }, [finishedProcessing, beforeUnload]);
 
   return (
     <div id="questions">
@@ -54,21 +52,19 @@ const Questions = ({
           record={recording}
           onStop={onStop}
           ref={micRef}
-          visualSetting="none" // Hide the waveform
+          visualSetting="none"
         />
       </div>
       <h1 className="storyQuestion">
         {question.question_id + ". " + question.question_text}
       </h1>
-      {question.image_links ? (
+      {question.image_links && question.image_links.length > 0 ? (
         <div className="container">
-          {question.image_links.map((item) => {
-            return (
-              <div className="itemContainer">
-                <img src={item} alt="story scene" className="storyItem" />
-              </div>
-            );
-          })}
+          {question.image_links.map((item, idx) => (
+            <div className="itemContainer" key={idx}>
+              <img src={item} alt="story scene" className="storyItem" />
+            </div>
+          ))}
         </div>
       ) : (
         <div className="space" />
@@ -76,9 +72,7 @@ const Questions = ({
       {recording ? (
         <div
           className="recordingActionContainer"
-          onClick={() => {
-            stopRecording();
-          }}
+          onClick={stopRecording}
         >
           <div className="recordingContainer">
             <div className="listeningBar" />
@@ -91,12 +85,12 @@ const Questions = ({
             <div className="listeningBar" />
             <div className="listeningBar" />
           </div>
-          {showChinese ? "(再次点击提交答案)" : "(click again to submit answer)"}
+          {showChinese ? "（再次点击提交答案）" : "(click again to submit answer)"}
         </div>
       ) : disableOption ? (
         <div className="recordingContainer disabled">
           <p>{showChinese ? "正在播放说明..." : "Instructions playing..."}</p>
-          </div>
+        </div>
       ) : (
         <div className="recordingContainer enabled" onClick={startRecording}>
           <p>{showChinese ? "点击录制答案" : "Click to record answer"}</p>
