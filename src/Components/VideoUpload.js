@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { API_BASE_URL } from "../config";
+import { APIBASEURL } from "../config";
 
 const DESIRED_TYPE = "video/mp4"; // backend can convert if different
 
@@ -36,11 +36,11 @@ const VideoUpload = () => {
       const formData = new FormData();
       formData.append("video", file);
       formData.append(
-        "participant_id",
+        "participantid",
         localStorage.getItem("username") || ""
       );
 
-      const res = await fetch(`${API_BASE_URL}/video-upload`, {
+      const res = await fetch(`${APIBASEURL}/video-upload`, {
         method: "POST",
         body: formData,
       });
