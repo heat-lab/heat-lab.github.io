@@ -5,7 +5,7 @@ import TextField from "@mui/material/TextField";
 import TranslationButton from "../Components/TranslationButton";
 import BlueButton from "../Components/BlueButton";
 import "./Home.css";
-import { API_BASE_URL } from "../config"; // <-- Add this line
+import { APIBASEURL } from "../config";
 
 const UserValidation = () => {
   const [username, setUsername] = useState(null);
@@ -30,8 +30,8 @@ const UserValidation = () => {
   const validateUser = async () => {
     setUsername(false);
     try {
-      let response = await fetch(
-        `${API_BASE_URL}/users?participant_id=${username}`,
+      const response = await fetch(
+        `${APIBASEURL}/users?participantid=${encodeURIComponent(username)}`,
         {
           method: "GET",
           headers: {
@@ -40,7 +40,7 @@ const UserValidation = () => {
         }
       );
       if (response.ok) {
-        let data = await response.json();
+        const data = await response.json();
         if (data && data.length > 0 && data[0].is_active) {
           localStorage.setItem("username", username);
           const queryParam = `?cn-zw=${chineseLoginPage ? "true" : "false"}`;
