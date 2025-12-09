@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
-import Button from "@mui/material/Button";
 import "./Home.css";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
@@ -9,7 +8,6 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
 import TranslationButton from "../Components/TranslationButton";
 import BlueButton from "../Components/BlueButton";
-import { CheckOutlined } from "@mui/icons-material";
 
 const ParentQuestions = () => {
   const location = useLocation();
@@ -34,17 +32,12 @@ const ParentQuestions = () => {
   }, [location]);
 
   useEffect(() => {
-    for (let key in answers) {
-      if (answers[key] === null) {
-        setAllQuestionsAnswered(false);
-        return;
-      }
-    }
-    setAllQuestionsAnswered(true);
-  }, [answers])
+    const anyUnanswered = Object.values(answers).some((v) => v === null);
+    setAllQuestionsAnswered(!anyUnanswered);
+  }, [answers]);
 
   const handleChange = (question, value) => {
-    setAnswers({ ...answers, [question]: value === "true" });
+    setAnswers((prev) => ({ ...prev, [question]: value === "true" }));
   };
 
   const checkCorrectness = () => {
@@ -59,8 +52,6 @@ const ParentQuestions = () => {
     ) {
       const queryParam = `?cn-zw=${showQuestionInChinese ? "true" : "false"}`;
       navigate(`/login${queryParam}`);
-      // const url = `/login?cn-zw=${showQuestionInChinese ? "true" : "false"}`;
-      // window.location.href = url;
     } else {
       alert(
         showQuestionInChinese
@@ -85,8 +76,8 @@ const ParentQuestions = () => {
       "您的房间目前是否安静且没有干扰？",
       "您的音量是否设置合适？",
       "如果您的孩子不确定答案，您能重复问题给他们吗？",
-      "如果您的孩子不确定答案，您可以鼓励他们猜答案吗？",
-      "如果你的孩子回答错误, 您可以纠正他们吗？",
+      "如果您的孩子犹豫不决，您可以鼓励他们猜答案吗？",
+      "如果你的孩子回答错误，您可以纠正他们吗？",
       "您的孩子接下来会自己独立进行选择/点击的吗？",
     ],
   };
@@ -111,7 +102,7 @@ const ParentQuestions = () => {
             <>Please correctly answer the following questions to start</>
           )}
         </h2>
-        <TranslationButton 
+        <TranslationButton
           showChinese={showQuestionInChinese}
           setShowChinese={setShowQuestionInChinese}
         />
@@ -132,12 +123,12 @@ const ParentQuestions = () => {
                   <span className="questionsSide">{question}</span>
                   <span className="radioButtons">
                     <FormControlLabel
-                      value={true}
+                      value="true"
                       control={<Radio />}
                       label={labels.yes}
                     />
                     <FormControlLabel
-                      value={false}
+                      value="false"
                       control={<Radio />}
                       label={labels.no}
                     />
@@ -149,27 +140,26 @@ const ParentQuestions = () => {
         </FormControl>
       </div>
       <div className="nextBack">
-        <div className={"nextBackButton"}>
-          <BlueButton 
+        <div className="nextBackButton">
+          <BlueButton
             showChinese={showQuestionInChinese}
-            textEnglish={"Back"}
-            textChinese={"后退"}
+            textEnglish="Back"
+            textChinese="后退"
             onClick={() => {
               const url = `/?cn-zw=${showQuestionInChinese ? "true" : "false"}`;
               navigate(url);
-              
             }}
           />
         </div>
-        <div className={"nextBackButton"}>
-          <BlueButton 
+        <div className="nextBackButton">
+          <BlueButton
             showChinese={showQuestionInChinese}
-            textEnglish={"Next"}
-            textChinese={"下一步"}
+            textEnglish="Next"
+            textChinese="下一步"
             onClick={checkCorrectness}
             disabled={!allQuestionsAnswered}
           />
-        </div>      
+        </div>
       </div>
     </div>
   );
