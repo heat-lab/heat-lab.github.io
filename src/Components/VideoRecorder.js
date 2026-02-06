@@ -247,7 +247,7 @@ const VideoRecorder = () => {
                       style={{
                         width: "240px",
                         height: "180px",
-                        border: "1px solid "#ccc",
+                        border: "1px solid #ccc",
                       }}
                     />
                   </div>
