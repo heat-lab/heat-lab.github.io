@@ -12,7 +12,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<UserValidation />} />
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<UserValidation />} />
         <Route path="/parent-questions" element={<ParentQuestions />} />
         <Route path="/test-selection" element={<TestSelection />} />
