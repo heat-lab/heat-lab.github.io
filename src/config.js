@@ -1,1 +1,1 @@
-export const APIBASEURL = "https://merls-backend.onrender.com/";
+export const APIBASEURL = "https://merls-backend.onrender.com";
