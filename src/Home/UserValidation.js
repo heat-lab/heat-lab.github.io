@@ -31,7 +31,7 @@ const UserValidation = () => {
     setUsername(false);
     try {
       const response = await fetch(
-        `${APIBASEURL}/users?participant_id=${encodeURIComponent(username)}`,
+        `${APIBASEURL}/users?participantid=${encodeURIComponent(username)}`,
         {
           method: "GET",
           headers: {
