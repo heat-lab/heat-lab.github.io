@@ -28,7 +28,6 @@ const UserValidation = () => {
   };
 
   const validateUser = async () => {
-    setUsername(false);
     try {
       const response = await fetch(
         `${APIBASEURL}/users?participant_id=${encodeURIComponent(username)}`,
@@ -39,19 +38,24 @@ const UserValidation = () => {
           },
         }
       );
+      console.log("Response status:", response.status, response.ok);
       if (response.ok) {
         const data = await response.json();
+        console.log("Response data:", data);
         if (data && data.length > 0 && data[0].is_active) {
           localStorage.setItem("username", username);
           const queryParam = `?cn-zw=${chineseLoginPage ? "true" : "false"}`;
           navigate(`/test-selection${queryParam}`);
         } else {
+          console.log("Validation failed: data check failed", { data, hasData: !!data, length: data?.length, isActive: data?.[0]?.is_active });
           alertLoginFailure();
         }
       } else {
+        console.log("Validation failed: response not ok", response.status);
         alertLoginFailure();
       }
     } catch (error) {
+      console.error("Validation error:", error);
       alertLoginFailure();
     }
   };
