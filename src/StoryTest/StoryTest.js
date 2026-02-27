@@ -208,7 +208,7 @@ const StoryTest = ({ language }) => {
 
   const submitAnswers = async () => {
     const username = localStorage.getItem("username");
-    const endpoint = `${APIBASEURL}/questions`;
+    const endpoint = `${APIBASEURL}/submissions`;
 
     const requestBody = {
       participantId: username,
@@ -223,7 +223,7 @@ const StoryTest = ({ language }) => {
     console.log("Submitting data:", requestBody);
 
     const response = await fetch(endpoint, {
-      method: "PUT",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
     });

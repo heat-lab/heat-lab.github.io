@@ -140,7 +140,7 @@ const Test = ({ type, language }) => {
 
       async function submitAnswersToDB() {
         console.log("type:", type);
-        const endpoint = `${APIBASEURL}/questions`;
+        const endpoint = `${APIBASEURL}/submissions`;
         let requestBody;
 
         if (type === "matching") {
@@ -182,7 +182,7 @@ const Test = ({ type, language }) => {
         console.log("Submitting data:", requestBody);
 
         const response = await fetch(endpoint, {
-          method: "PUT",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
