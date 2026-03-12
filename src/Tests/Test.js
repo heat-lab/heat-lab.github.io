@@ -38,7 +38,7 @@ const Test = ({ type, language }) => {
     const fetchQuestions = async () => {
       try {
         const response = await fetch(
-          `${APIBASEURL}questions?language=${encodeURIComponent(
+          `${APIBASEURL}/questions?language=${encodeURIComponent(
             isEnglish ? "EN" : "CN"
           )}&type=${encodeURIComponent(type)}`
         );
