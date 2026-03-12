@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import { ReactMic } from 'react-mic';
 import BlueButton from "../Components/BlueButton";
 import "./Test.scss";
 
-const AudioPermission = ({showChinese, setShowAudioPermission}) => {
+const AudioPermission = ({ showChinese, setShowAudioPermission }) => {
     const [gavePermission, setGavePermission] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -56,7 +56,7 @@ const AudioPermission = ({showChinese, setShowAudioPermission}) => {
         setIsRecording(true);
         setTimeout(() => {
             setIsRecording(false);
-            }, 5000);
+        }, 5000);
     }
 
     const getButtonTextEnglish = () => {
@@ -99,44 +99,28 @@ const AudioPermission = ({showChinese, setShowAudioPermission}) => {
     }, [isRecording, isPlaying, gavePermission])
 
 
-    // async function checkMicrophonePermission() {
-    //     try {
-    //       const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
-    //       if (permissionStatus.state === 'granted') {
-    //         setGavePermission(true);
-    //       } else if (permissionStatus.state === 'denied') {
-    //         setGavePermission(false);
-    //       } else {
-    //         setGavePermission(false);
-    //       }
-    //     } catch (error) {
-    //       console.error(error);
-    //     }
-    //   }
-    
-    // const requestMicrophoneAccess = async () => {
-    //     try {
-    //         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    //         stream.getTracks().forEach(track => track.stop());
-    //     } catch (error) {}
-
-    //     checkMicrophonePermission();
-    // }
+    async function checkMicrophonePermission() {
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+            if (permissionStatus.state === 'granted') {
+                setGavePermission(true);
+            } else if (permissionStatus.state === 'denied') {
+                setGavePermission(false);
+            } else {
+                setGavePermission(false);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
 
     const requestMicrophoneAccess = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             stream.getTracks().forEach(track => track.stop());
-            // If we got here, permission was granted
-            setGavePermission(true);
-        // } catch (error) {
-        //     console.error("Microphone access error:", error);
-        //     setGavePermission(false);
-        // }
-        } catch (error) {
-            console.error("Microphone access error:", error);
-            setGavePermission(false);
-        }
+        } catch (error) { }
+
+        checkMicrophonePermission();
     }
 
     useEffect(() => {
@@ -157,12 +141,12 @@ const AudioPermission = ({showChinese, setShowAudioPermission}) => {
     }
 
     return (
-        <div style={{display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%"}}>
-            <p style={{fontSize: "25px", fontWeight: "700", textAlign: "center"}}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%" }}>
+            <p style={{ fontSize: "25px", fontWeight: "700", textAlign: "center" }}>
                 {!showChinese ? "Please allow microphone access to proceed." : "请允许麦克风访问以继续。"}
             </p>
-            <div style={{height: "30px"}}/>
-            <p style={{fontSize: "15px", fontWeight: "500", textAlign: "center"}}>
+            <div style={{ height: "30px" }} />
+            <p style={{ fontSize: "15px", fontWeight: "500", textAlign: "center" }}>
                 {!showChinese ? "If you see the moving bars, that means your microphone is working." : "如果您看到移动的条形图，那意味着您的麦克风正在工作。"}
             </p>
             <ReactMic
@@ -172,20 +156,20 @@ const AudioPermission = ({showChinese, setShowAudioPermission}) => {
                 backgroundColor="#F0F8FF"
                 visualSetting="frequencyBars"
                 className="reactMicStyle" />
-            <div style={{height: "20px"}}/>
-            <BlueButton className="testMicrophone" showChinese={showChinese} textEnglish={getButtonTextEnglish()} textChinese={getButtonTextChinese()} onClick={beginRecording} disabled={disableRecordButton}/>
-            <div style={{height: "90px"}}/>
-            <BlueButton showChinese={showChinese} textEnglish={getProceedTextEnglish()} textChinese={getProceedTextChinese()} onClick={proceed} disabled={checkProceedStatus()}/>
-            <div style={{height: "30px"}}/>
-            <div className="divider"/>
-            <p style={{fontSize: "20px", fontWeight: "700", textAlign: "center"}}>
+            <div style={{ height: "20px" }} />
+            <BlueButton className="testMicrophone" showChinese={showChinese} textEnglish={getButtonTextEnglish()} textChinese={getButtonTextChinese()} onClick={beginRecording} disabled={disableRecordButton} />
+            <div style={{ height: "90px" }} />
+            <BlueButton showChinese={showChinese} textEnglish={getProceedTextEnglish()} textChinese={getProceedTextChinese()} onClick={proceed} disabled={checkProceedStatus()} />
+            <div style={{ height: "30px" }} />
+            <div className="divider" />
+            <p style={{ fontSize: "20px", fontWeight: "700", textAlign: "center" }}>
                 {!showChinese ? "Click on your browser to find out how to enable access" : "点击您的浏览器以了解如何启用访问权限"}
             </p>
             <div className="browserIconContainer">
-                <img className="browserIcon" src="https://www.google.com/chrome/static/images/chrome-logo.svg" alt="google chrome icon" onClick={() => redirect("https://support.google.com/chrome/answer/2693767")}/>
-                <img className="browserIcon" src="https://upload.wikimedia.org/wikipedia/commons/5/52/Safari_browser_logo.svg" alt="safari icon" onClick={() => redirect("https://support.apple.com/guide/safari/websites-ibrwe2159f50/mac")}/>
-                <img className="browserIcon" src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Microsoft_Edge_logo_%282019%29.png" alt="microsoft edge icon" onClick={() => redirect("https://support.microsoft.com/en-us/windows/windows-camera-microphone-and-privacy-a83257bc-e990-d54a-d212-b5e41beba857")}/>
-                <img className="browserIcon" src="https://upload.wikimedia.org/wikipedia/commons/a/a0/Firefox_logo%2C_2019.svg" alt="firefox icon"onClick={() => redirect("https://support.mozilla.org/en-US/kb/how-manage-your-camera-and-microphone-permissions")}/>
+                <img className="browserIcon" src="https://www.google.com/chrome/static/images/chrome-logo.svg" alt="google chrome icon" onClick={() => redirect("https://support.google.com/chrome/answer/2693767")} />
+                <img className="browserIcon" src="https://upload.wikimedia.org/wikipedia/commons/5/52/Safari_browser_logo.svg" alt="safari icon" onClick={() => redirect("https://support.apple.com/guide/safari/websites-ibrwe2159f50/mac")} />
+                <img className="browserIcon" src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Microsoft_Edge_logo_%282019%29.png" alt="microsoft edge icon" onClick={() => redirect("https://support.microsoft.com/en-us/windows/windows-camera-microphone-and-privacy-a83257bc-e990-d54a-d212-b5e41beba857")} />
+                <img className="browserIcon" src="https://upload.wikimedia.org/wikipedia/commons/a/a0/Firefox_logo%2C_2019.svg" alt="firefox icon" onClick={() => redirect("https://support.mozilla.org/en-US/kb/how-manage-your-camera-and-microphone-permissions")} />
             </div>
         </div>
     )
