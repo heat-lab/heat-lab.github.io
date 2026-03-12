@@ -5,7 +5,7 @@ import AppBar from "@mui/material/AppBar";
 import TranslationButton from "../Components/TranslationButton";
 import Confirmation from "../Components/Confirmation";
 import "./TestSelection.css";
-import APIBASEURL from "../config";
+import { APIBASEURL } from "../config";
 
 const LanguageSelection = () => {
   const navigate = useNavigate();
@@ -108,9 +108,8 @@ const LanguageSelection = () => {
 
       <div className="testSelectionGroup">
         <button
-          className={`testButton ${
-            selectedButton === 1 ? "selected" : "unselected"
-          }`}
+          className={`testButton ${selectedButton === 1 ? "selected" : "unselected"
+            }`}
           onClick={() => handleTestClick(0)}
           disabled={chineseMatchingCompleted}
         >
@@ -118,9 +117,8 @@ const LanguageSelection = () => {
         </button>
 
         <button
-          className={`testButton ${
-            selectedButton === 2 ? "selected" : "unselected"
-          }`}
+          className={`testButton ${selectedButton === 2 ? "selected" : "unselected"
+            }`}
           onClick={() => handleTestClick(1)}
           disabled={englishMatchingCompleted}
         >
@@ -128,9 +126,8 @@ const LanguageSelection = () => {
         </button>
 
         <button
-          className={`testButton ${
-            selectedButton === 3 ? "selected" : "unselected"
-          }`}
+          className={`testButton ${selectedButton === 3 ? "selected" : "unselected"
+            }`}
           onClick={() => handleTestClick(2)}
           disabled={chineseRepetitionCompleted}
         >
@@ -138,9 +135,8 @@ const LanguageSelection = () => {
         </button>
 
         <button
-          className={`testButton ${
-            selectedButton === 4 ? "selected" : "unselected"
-          }`}
+          className={`testButton ${selectedButton === 4 ? "selected" : "unselected"
+            }`}
           onClick={() => handleTestClick(3)}
           disabled={englishRepetitionCompleted}
         >
@@ -148,9 +144,8 @@ const LanguageSelection = () => {
         </button>
 
         <button
-          className={`testButton ${
-            selectedButton === 5 ? "selected" : "unselected"
-          }`}
+          className={`testButton ${selectedButton === 5 ? "selected" : "unselected"
+            }`}
           onClick={() => handleTestClick(4)}
           disabled={englishStoryCompleted}
         >
@@ -167,9 +162,8 @@ const LanguageSelection = () => {
       )}
 
       <button
-        className={`selectionButton ${
-          selectedButton ? "selectionEnabled" : "selectionDisabled"
-        }`}
+        className={`selectionButton ${selectedButton ? "selectionEnabled" : "selectionDisabled"
+          }`}
         disabled={!selectedButton}
         onClick={handleStartTest}
       >

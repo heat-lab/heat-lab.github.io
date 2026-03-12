@@ -9,7 +9,7 @@ import CompletionPage from "./CompletionPage";
 import GuidedTutorial from "./GuidedTutorial";
 import Instructions from "./Instructions";
 import "./Test.scss";
-import APIBASEURL from "../config";
+import { APIBASEURL } from "../config";
 
 const Test = ({ type, language }) => {
   const navigate = useNavigate();
