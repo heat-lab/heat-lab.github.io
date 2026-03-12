@@ -1,343 +1,226 @@
-import React, { useState, useEffect, useRef } from "react";
-import "./Test.scss";
+// src/Tests/Test.js
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
-import CircularProgress from "@mui/material/CircularProgress";
-import Container from "@mui/material/Container";
-import { useNavigate, useLocation } from "react-router-dom";
-import Question from "./Question";
-import Repetition from "./Repetition";
-import Instructions from "./Instructions";
-import Practice from "./Practice";
 import TranslationButton from "../Components/TranslationButton";
-import AudioPermission from "./AudioPermission";
-import ReinforcementPage from "./ReinforcementPage";
+import Question from "./Question";
+import Practice from "./Practice";
 import CompletionPage from "./CompletionPage";
-import GreenButton from "../Components/GreenButton";
-import { APIBASEURL } from "../config";
-
-const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
+import GuidedTutorial from "./GuidedTutorial";
+import Instructions from "./Instructions";
+import "./Test.scss";
+import APIBASEURL from "../config";
 
 const Test = ({ type, language }) => {
-  const [questions, setQuestions] = useState([]);
-  const [curId, setCurId] = useState(1);
-  const [answers, setAnswers] = useState({});
-  const [showReinforcementPage, setShowReinforcementPage] = useState(false);
-  const [showPractice, setShowPractice] = useState(true);
-  const [showAudioPermission, setShowAudioPermission] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
-  const [showChinese, setShowChinese] = useState(false);
-  const [reinforcementID, setReinforcementID] = useState(0);
-  const [audioBlobs, setAudioBlobs] = useState({});
-
   const navigate = useNavigate();
   const location = useLocation();
 
-  const ReinforcementAudio = [
-    [
-      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement1.m4a",
-      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement1.m4a",
-    ],
-    [
-      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement2.m4a",
-      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement2.m4a",
-    ],
-    [
-      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement3.m4a",
-      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement3.m4a",
-    ],
-    [
-      "https://non-question-links.s3.us-east-2.amazonaws.com/english-reinforcement4.m4a",
-      "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-reinforcement4.m4a",
-    ],
-  ];
+  const [questions, setQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(-1); // -1 = instructions/guided/practice
+  const [showChinese, setShowChinese] = useState(true);
+  const [phase, setPhase] = useState("instructions"); // instructions -> tutorial -> practice -> test -> complete
+  const audioLink = useRef(null);
 
-  const audioLink = useRef("");
+  const isEnglish = language === "english";
+  const isMatching = type === "matching";
+  const isRepetition = type === "repetition";
+  const isStory = type === "story";
 
-  // record answer and go to next question
-  const recordAnswer = (questionId, answerId) => {
-    // show the reinforcement page when the test is part-way through
-    if (curId === Math.floor(questions.length / 4)) {
-      setShowReinforcementPage(true);
-      setReinforcementID(0);
-    } else if (curId === Math.floor(questions.length / 2)) {
-      setShowReinforcementPage(true);
-      setReinforcementID(1);
-    } else if (curId === Math.floor((3 * questions.length) / 4)) {
-      setShowReinforcementPage(true);
-      setReinforcementID(2);
-    }
-
-    if (type === "matching" && language === "CN" && curId + 1 === 29) {
-      audioLink.current =
-        "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-instructions.m4a";
-      setShowInstructions(true);
-      setShowPractice(true);
-      setCurId((prevId) => prevId + 2);
-    } else {
-      setCurId((prevId) => prevId + 1);
-    }
-
-    console.log("submitting question id:", curId + 1);
-    setAnswers((prev) => ({ ...prev, [questionId]: answerId }));
-  };
-
-  const recordAudioBlob = (questionId, blob) => {
-    if (!questionId || !blob) {
-      console.error("Missing required parameters:", { questionId, blob });
-      return;
-    }
-
-    setAudioBlobs((prev) => {
-      const updatedBlobs = { ...prev, [questionId]: blob };
-      console.log("Current Audio Blobs:", Object.keys(updatedBlobs));
-      return updatedBlobs;
-    });
-  };
-
-  const uploadBlobToLambda = async (blob, questionId) => {
-    try {
-      const reader = new FileReader();
-      const base64Data = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob.blob);
-      });
-
-      const requestBody = {
-        fileType: "audio/webm",
-        audioData: base64Data,
-        userId: localStorage.getItem("username"),
-        questionId,
-        bucketName: "merls-audio",
-      };
-
-      const response = await fetch(LAMBDAAPIENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          `Upload failed: ${errorData.error || response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      return data.url;
-    } catch (error) {
-      console.error("Upload error:", error);
-      throw error;
-    }
-  };
-
-  const submitAnswers = () => {
-    try {
-      const username = localStorage.getItem("username");
-
-      async function submitAnswersToDB() {
-        console.log("type:", type);
-        const endpoint = `${APIBASEURL}/submissions`;
-        let requestBody;
-
-        if (type === "matching") {
-          requestBody = {
-            participantId: username,
-            userAns: answers,
-            isEN: language !== "CN",
-            isAudioTest: false,
-            audioSubmissionList: null,
-            submissionType: "matching",
-          };
-        } else if (type === "repetition") {
-          const audioUrls = {};
-          for (const [questionId, blob] of Object.entries(audioBlobs)) {
-            try {
-              const s3UrlMatch = await uploadBlobToLambda(blob, questionId);
-              if (s3UrlMatch) {
-                audioUrls[questionId] = s3UrlMatch.split("?")[0];
-              } else {
-                console.error("Invalid S3 URL format:", s3UrlMatch);
-              }
-            } catch (error) {
-              console.error(
-                `Failed to upload audio for question ${questionId}:`,
-                error
-              );
-            }
-          }
-          requestBody = {
-            participantId: username,
-            audioSubmissionList: audioUrls,
-            isEN: language !== "CN",
-            isAudioTest: true,
-            userAns: null,
-            submissionType: "repetition",
-          };
-        }
-
-        console.log("Submitting data:", requestBody);
-
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (response.ok) {
-          const queryParam = `?cn-zw=${showChinese ? "true" : "false"}`;
-          navigate(`/test-selection${queryParam}`);
-        } else {
-          alert("Failed to submit answers");
-        }
-      }
-
-      submitAnswersToDB();
-    } catch (error) {
-      alert("Failed to submit answers");
-      console.error("Failed to submit answers: ", error);
-    }
-  };
-
+  // Preserve cn-zw behaviour
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const languageParam = params.get("cn-zw");
     setShowChinese(languageParam === "true");
   }, [location]);
 
+  // Fetch questions from backend
   useEffect(() => {
-    async function fetchQuestionList() {
-      const response = await fetch(
-        `${APIBASEURL}/questions?language=${encodeURIComponent(
-          language
-        )}&type=${encodeURIComponent(type)}`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-          },
+    const fetchQuestions = async () => {
+      try {
+        const response = await fetch(
+          `${APIBASEURL}questions?language=${encodeURIComponent(
+            isEnglish ? "EN" : "CN"
+          )}&type=${encodeURIComponent(type)}`
+        );
+        if (!response.ok) {
+          console.error("Failed to fetch questions", response.status);
+          return;
         }
-      );
-      console.log("getting questions");
-      const questionList = await response.json();
-      setQuestions(questionList);
-    }
-    fetchQuestionList();
-  }, [language, type]);
+        const questionList = await response.json();
+        setQuestions(questionList || []);
+      } catch (error) {
+        console.error("Error fetching questions", error);
+      }
+    };
 
+    fetchQuestions();
+  }, [isEnglish, type]);
+
+  // Instruction audio link
   useEffect(() => {
-    if (type === "matching") {
-      audioLink.current =
-        language === "CN"
-          ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-matching-instructions.m4a"
-          : "https://non-question-links.s3.us-east-2.amazonaws.com/english-matching-instructions.m4a";
-    } else if (type === "repetition") {
-      audioLink.current =
-        language === "CN"
-          ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-instructions.m4a"
-          : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-instructions.m4a";
-      setShowAudioPermission(true);
+    if (isMatching) {
+      audioLink.current = isEnglish
+        ? "https://non-question-links.s3.us-east-2.amazonaws.com/english-matching-instructions.m4a"
+        : "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-matching-instructions.m4a";
+    } else if (isRepetition) {
+      audioLink.current = isEnglish
+        ? "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-instructions.m4a"
+        : "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-instructions.m4a";
+    } else if (isStory) {
+      audioLink.current = isEnglish
+        ? "https://non-question-links.s3.us-east-2.amazonaws.com/english-story-instructions.m4a"
+        : "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-story-instructions.m4a";
     }
-  }, [type, language]);
+  }, [isEnglish, isMatching, isRepetition, isStory]);
 
-  const completed = curId === questions.length;
+  const handleInstructionsComplete = () => {
+    setPhase("tutorial");
+  };
 
-  if (questions.length > 0) {
+  const handleTutorialComplete = () => {
+    setPhase("practice");
+  };
+
+  const handlePracticeComplete = () => {
+    setPhase("test");
+    setCurrentIndex(0);
+  };
+
+  const handleAnswerSubmit = async (answerPayload) => {
+    const isLast = currentIndex === questions.length - 1;
+
+    try {
+      await submitAnswersToDB({
+        type,
+        isEnglish,
+        answerPayload,
+      });
+    } catch (err) {
+      console.error("Error submitting answer", err);
+    }
+
+    if (isLast) {
+      setPhase("complete");
+    } else {
+      setCurrentIndex((idx) => idx + 1);
+    }
+  };
+
+  const handleExitToSelection = () => {
+    const queryParam = `?cn-zw=${showChinese ? "true" : "false"}`;
+    navigate(`/test-selection${queryParam}`);
+  };
+
+  if (phase === "instructions") {
     return (
-      <div id="testPage">
-        <AppBar className="titleContainer">
-          <progress
-            id="progress"
-            value={curId - 1}
-            max={questions.length - 1}
-          />
-          <TranslationButton
-            showChinese={showChinese}
-            setShowChinese={setShowChinese}
-          />
-        </AppBar>
-        {localStorage.getItem("username") === "lucy" ? (
-          <div className="debugAdvanceButton">
-            <GreenButton
-              textEnglish="next part"
-              onClick={() => {
-                setCurId((prev) => prev + 1);
-              }}
-            />
-          </div>
-        ) : null}
-        <Container className="testContainer">
-          {completed ? (
-            <CompletionPage
-              showChinese={showChinese}
-              imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
-              submitAnswers={submitAnswers}
-              audioLink={ReinforcementAudio[3][language === "EN" ? 0 : 1]}
-            />
-          ) : showReinforcementPage ? (
-            <ReinforcementPage
-              showChinese={showChinese}
-              audioLink={
-                ReinforcementAudio[reinforcementID][
-                  language === "EN" ? 0 : 1
-                ]
-              }
-              imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
-              setShowReinforcement={setShowReinforcementPage}
-            />
-          ) : showAudioPermission ? (
-            <AudioPermission
-              setShowAudioPermission={setShowAudioPermission}
-              showChinese={showChinese}
-            />
-          ) : showInstructions ? (
-            <div>
-              <Instructions
-                showChinese={showChinese}
-                audioLink={audioLink.current}
-                setShowInstructions={setShowInstructions}
-              />
-            </div>
-          ) : showPractice ? (
-            <Practice
-              setShowPractice={setShowPractice}
-              type={type}
-              language={curId > 1 ? "second" : language}
-              question={questions[curId - 1]}
-              showChinese={showChinese}
-              recordAudioBlob={recordAudioBlob}
-            />
-          ) : type === "matching" ? (
-            <Question
-              curQuestion={questions[curId]}
-              recordAnswer={recordAnswer}
-              showChinese={showChinese}
-            />
-          ) : type === "repetition" ? (
-            <Repetition
-              curQuestion={questions[curId]}
-              recordAnswer={recordAnswer}
-              showChinese={showChinese}
-              recordAudioBlob={recordAudioBlob}
-            />
-          ) : (
-            <p>page does not exist</p>
-          )}
-        </Container>
-      </div>
+      <Instructions
+        type={type}
+        language={language}
+        showChinese={showChinese}
+        setShowChinese={setShowChinese}
+        audioLink={audioLink}
+        onComplete={handleInstructionsComplete}
+      />
     );
   }
 
+  if (phase === "tutorial") {
+    return (
+      <GuidedTutorial
+        type={type}
+        language={language}
+        showChinese={showChinese}
+        setShowChinese={setShowChinese}
+        onComplete={handleTutorialComplete}
+      />
+    );
+  }
+
+  if (phase === "practice") {
+    return (
+      <Practice
+        type={type}
+        language={language}
+        showChinese={showChinese}
+        setShowChinese={setShowChinese}
+        onComplete={handlePracticeComplete}
+      />
+    );
+  }
+
+  if (phase === "complete") {
+    return (
+      <CompletionPage
+        type={type}
+        language={language}
+        showChinese={showChinese}
+        setShowChinese={setShowChinese}
+        onExit={handleExitToSelection}
+      />
+    );
+  }
+
+  const currentQuestion = questions[currentIndex];
+
   return (
-    <div className="loadingContainer">
-      <CircularProgress size={75} thickness={3} variant="indeterminate" />
+    <div className="testContainer">
+      <AppBar className="testAppBar">
+        <h1 className="testTitle">
+          {showChinese ? "MERLS" : "MERLS"}
+        </h1>
+        <TranslationButton
+          showChinese={showChinese}
+          setShowChinese={setShowChinese}
+        />
+      </AppBar>
+
+      {currentQuestion && (
+        <Question
+          type={type}
+          language={language}
+          question={currentQuestion}
+          index={currentIndex}
+          total={questions.length}
+          onSubmit={handleAnswerSubmit}
+        />
+      )}
     </div>
   );
 };
+
+// Helper: submit answer and mark completion correctly
+async function submitAnswersToDB({ type, isEnglish, answerPayload }) {
+  const username = localStorage.getItem("username");
+  if (!username) {
+    console.error("No username in localStorage");
+    return;
+  }
+
+  let submissionType = "matching";
+  if (type === "repetition") submissionType = "repetition";
+  if (type === "story") submissionType = "story";
+
+  const body = {
+    participantid: username,
+    isEN: isEnglish,
+    submissionType,
+    answers: answerPayload,
+  };
+
+  const res = await fetch(`${APIBASEURL}submit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    console.error("Submit failed", res.status, txt);
+    throw new Error(txt || "Submit failed");
+  }
+}
 
 export default Test;
