@@ -99,28 +99,44 @@ const AudioPermission = ({showChinese, setShowAudioPermission}) => {
     }, [isRecording, isPlaying, gavePermission])
 
 
-    async function checkMicrophonePermission() {
-        try {
-          const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
-          if (permissionStatus.state === 'granted') {
-            setGavePermission(true);
-          } else if (permissionStatus.state === 'denied') {
-            setGavePermission(false);
-          } else {
-            setGavePermission(false);
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
+    // async function checkMicrophonePermission() {
+    //     try {
+    //       const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+    //       if (permissionStatus.state === 'granted') {
+    //         setGavePermission(true);
+    //       } else if (permissionStatus.state === 'denied') {
+    //         setGavePermission(false);
+    //       } else {
+    //         setGavePermission(false);
+    //       }
+    //     } catch (error) {
+    //       console.error(error);
+    //     }
+    //   }
     
+    // const requestMicrophoneAccess = async () => {
+    //     try {
+    //         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    //         stream.getTracks().forEach(track => track.stop());
+    //     } catch (error) {}
+
+    //     checkMicrophonePermission();
+    // }
+
     const requestMicrophoneAccess = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             stream.getTracks().forEach(track => track.stop());
-        } catch (error) {}
-
-        checkMicrophonePermission();
+            // If we got here, permission was granted
+            setGavePermission(true);
+        // } catch (error) {
+        //     console.error("Microphone access error:", error);
+        //     setGavePermission(false);
+        // }
+        } catch (error) {
+            console.error("Microphone access error:", error);
+            setGavePermission(false);
+        }
     }
 
     useEffect(() => {
