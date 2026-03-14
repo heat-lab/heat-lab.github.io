@@ -1,10 +1,12 @@
 body {
   background-color: #e3f2fd;
 }
+
 #testPage {
   h3 {
     text-align: center;
   }
+
   #progress {
     border-radius: 10px;
     width: 50%;
@@ -12,10 +14,12 @@ body {
     margin: 0.5rem auto 1rem;
     box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2);
   }
+
   #progress::-webkit-progress-bar {
     background-color: white;
     border-radius: 7px;
   }
+
   #progress::-webkit-progress-value {
     background-color: rgb(53, 161, 197);
     border-radius: 7px;
@@ -28,6 +32,12 @@ body {
     overflow: hidden;
   }
 
+  .reactMicLiveContainer {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0 4px;
+  }
+
   .testContainer {
     min-height: 50vh;
     display: flex;
@@ -35,28 +45,34 @@ body {
     justify-content: center;
     margin-top: 20px;
   }
+
   .indicator {
     text-align: center;
     width: 100%;
     font-size: 1.5rem;
     margin-bottom: 25px;
   }
+
   .pauseButton {
     font-size: 70px;
+
     &.disabled {
       opacity: 0.5;
     }
   }
+
   .completionImg,
   .reinforcementGif {
     width: 50%;
     margin: 0 auto 1rem;
     display: block;
   }
+
   .completionContainer,
   .reinforcementContainer {
     text-align: center;
   }
+
   .completionMessage {
     font-size: 1rem;
     margin: 2rem 0;
@@ -231,9 +247,11 @@ body {
   0% {
     transform: scale(1.0);
   }
+
   40% {
     transform: scale(0.7);
   }
+
   100% {
     transform: scale(1.0);
   }
@@ -453,6 +471,4 @@ body {
   }
 }
 
-@media (max-height: 500px) {
-
-}
+@media (max-height: 500px) {}

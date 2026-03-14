@@ -9,6 +9,7 @@ const AudioPermission = ({ showChinese, setShowAudioPermission }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [disableRecordButton, setDisableRecordingButton] = useState(true);
     const [tested, setTested] = useState(false);
+    const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
 
     const proceed = () => {
         setShowAudioPermission(false);
@@ -100,6 +101,10 @@ const AudioPermission = ({ showChinese, setShowAudioPermission }) => {
 
 
     async function checkMicrophonePermission() {
+        if (!navigator.permissions || !navigator.permissions.query) {
+            return;
+        }
+
         try {
             const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
             if (permissionStatus.state === 'granted') {
@@ -117,10 +122,12 @@ const AudioPermission = ({ showChinese, setShowAudioPermission }) => {
     const requestMicrophoneAccess = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setGavePermission(true);
             stream.getTracks().forEach(track => track.stop());
-        } catch (error) { }
-
-        checkMicrophonePermission();
+            checkMicrophonePermission();
+        } catch (error) {
+            setGavePermission(false);
+        }
     }
 
     useEffect(() => {
@@ -128,16 +135,27 @@ const AudioPermission = ({ showChinese, setShowAudioPermission }) => {
     }, [])
 
     const onStop = (recordedBlob) => {
-        if (recordedBlob) {
-            const audio = new Audio(recordedBlob.blobURL);
-            setIsPlaying(true);
-            audio.play();
-            audio.addEventListener("ended", () => {
-                setIsPlaying(false);
-                setDisableRecordingButton(false);
-                setTested(true);
-            })
+        if (!recordedBlob || !recordedBlob.blobURL) {
+            return;
         }
+
+        setRecordedAudioUrl(recordedBlob.blobURL);
+        setTested(true);
+
+        const audio = new Audio(recordedBlob.blobURL);
+        setIsPlaying(true);
+        audio.addEventListener("ended", () => {
+            setIsPlaying(false);
+            setDisableRecordingButton(false);
+        });
+        audio.addEventListener("error", () => {
+            setIsPlaying(false);
+            setDisableRecordingButton(false);
+        });
+        audio.play().catch(() => {
+            setIsPlaying(false);
+            setDisableRecordingButton(false);
+        });
     }
 
     return (
@@ -158,6 +176,12 @@ const AudioPermission = ({ showChinese, setShowAudioPermission }) => {
                 className="reactMicStyle" />
             <div style={{ height: "20px" }} />
             <BlueButton className="testMicrophone" showChinese={showChinese} textEnglish={getButtonTextEnglish()} textChinese={getButtonTextChinese()} onClick={beginRecording} disabled={disableRecordButton} />
+            {recordedAudioUrl && (
+                <>
+                    <div style={{ height: "12px" }} />
+                    <audio controls src={recordedAudioUrl} style={{ width: "300px", maxWidth: "90vw" }} />
+                </>
+            )}
             <div style={{ height: "90px" }} />
             <BlueButton showChinese={showChinese} textEnglish={getProceedTextEnglish()} textChinese={getProceedTextChinese()} onClick={proceed} disabled={checkProceedStatus()} />
             <div style={{ height: "30px" }} />
