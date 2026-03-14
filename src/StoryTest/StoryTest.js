@@ -31,6 +31,72 @@ const retellingLinks = [
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
 ];
 
+const normalizeStoryData = (rawData) => {
+  if (!Array.isArray(rawData) || rawData.length === 0) {
+    return [];
+  }
+
+  // Backward-compatible: payload already grouped by story.
+  if (Array.isArray(rawData[0]?.questions)) {
+    return rawData.map((story, index) => ({
+      story_id: story.story_id ?? index + 1,
+      questions: Array.isArray(story.questions) ? story.questions : [],
+      image_links: Array.isArray(story.image_links) ? story.image_links : [],
+      narration_audios: Array.isArray(story.narration_audios)
+        ? story.narration_audios
+        : [],
+    }));
+  }
+
+  // New payload shape: flat list of questions with story_id.
+  const grouped = rawData.reduce((acc, row) => {
+    const storyId = row.story_id ?? 1;
+    if (!acc[storyId]) {
+      acc[storyId] = {
+        story_id: storyId,
+        questions: [],
+        image_links: [],
+        narration_audios: [],
+      };
+    }
+    acc[storyId].questions.push(row);
+    return acc;
+  }, {});
+
+  return Object.values(grouped)
+    .map((story) => {
+      const imageSet = new Set();
+      const narrationSet = new Set();
+
+      const sortedQuestions = [...story.questions].sort(
+        (a, b) => (a.question_id ?? 0) - (b.question_id ?? 0)
+      );
+
+      sortedQuestions.forEach((question) => {
+        const links = Array.isArray(question.image_links)
+          ? question.image_links
+          : [];
+        links.forEach((link) => {
+          if (link) {
+            imageSet.add(link);
+          }
+        });
+
+        if (question.narration_audio) {
+          narrationSet.add(question.narration_audio);
+        }
+      });
+
+      return {
+        ...story,
+        questions: sortedQuestions,
+        image_links: Array.from(imageSet),
+        narration_audios: Array.from(narrationSet),
+      };
+    })
+    .sort((a, b) => (a.story_id ?? 0) - (b.story_id ?? 0));
+};
+
 const StoryTest = ({ language }) => {
   // currentStory uses 1-based indexing
   const [currentStory, setCurrentStory] = useState(1);
@@ -103,28 +169,29 @@ const StoryTest = ({ language }) => {
         }
       );
       console.log("getting story data");
-      const data = await response.json();
-      setStories(data);
-      console.log("Fetched story data:", data);
+      const rawData = await response.json();
+      const normalizedStories = normalizeStoryData(rawData);
+      setStories(normalizedStories);
+      console.log("Fetched story data:", normalizedStories);
 
-      if (!data || data.length === 0) {
+      if (!normalizedStories || normalizedStories.length === 0) {
         setShowLoading(false);
         return;
       }
 
       // initialize with first story
-      setQuestions(data[0].questions);
-      setImageLinks(data[0].image_links);
-      setNarrationLinks(data[0].narration_audios);
+      setQuestions(normalizedStories[0].questions || []);
+      setImageLinks(normalizedStories[0].image_links || []);
+      setNarrationLinks(normalizedStories[0].narration_audios || []);
       audioLink = narrationInstruction;
       setShowLoading(false);
 
       // compute total stages
       let total = 0;
-      for (const element of data) {
+      for (const element of normalizedStories) {
         // 4 narration/retell instruction chunks + 3 retell segments + 1 question instruction + N questions
         total += 8;
-        total += element.questions.length;
+        total += Array.isArray(element.questions) ? element.questions.length : 0;
       }
       setTotalStages(total);
     }
@@ -240,6 +307,7 @@ const StoryTest = ({ language }) => {
     console.log("playing", audioLink);
     if (!audioLink) {
       console.log("audio link null");
+      setDisableOption(false);
       return;
     }
 
@@ -273,11 +341,11 @@ const StoryTest = ({ language }) => {
 
   const updateInstructionLink = (stageValue, subStageValue) => {
     if (stageValue === 1) {
-      audioLink = narrationLinks[subStageValue - 1];
+      audioLink = narrationLinks[subStageValue - 1] || "";
     } else if (stageValue === 2) {
       audioLink = retellingLinks[subStageValue - 1];
     } else if (stageValue === 4) {
-      audioLink = questions[subStageValue - 1].question_audio;
+      audioLink = questions[subStageValue - 1]?.question_audio || "";
     } else {
       audioLink = "";
     }
@@ -332,9 +400,10 @@ const StoryTest = ({ language }) => {
           setAudioPlaying(true);
           console.log("test ending");
         } else {
-          setQuestions(stories[currentStory].questions);
-          setImageLinks(stories[currentStory].image_links);
-          setNarrationLinks(stories[currentStory].narration_audios);
+          const nextStory = stories[currentStory];
+          setQuestions(nextStory?.questions || []);
+          setImageLinks(nextStory?.image_links || []);
+          setNarrationLinks(nextStory?.narration_audios || []);
           setCurrentStory((prev) => prev + 1);
         }
       } else {
@@ -350,19 +419,19 @@ const StoryTest = ({ language }) => {
       return [
         { id: 1, link: imageLinks[0] },
         { id: 2, link: imageLinks[1] },
-      ];
+      ].filter((item) => !!item.link);
     } else if (subStage === 2) {
       return [
         { id: 3, link: imageLinks[2] },
         { id: 4, link: imageLinks[3] },
-      ];
+      ].filter((item) => !!item.link);
     } else if (subStage === 3) {
       return [
         { id: 5, link: imageLinks[4] },
         { id: 6, link: imageLinks[5] },
-      ];
+      ].filter((item) => !!item.link);
     }
-    return null;
+    return [];
   };
 
   if (showLoading) {

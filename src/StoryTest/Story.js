@@ -3,12 +3,14 @@ import GreenButton from "../Components/GreenButton";
 import "./StoryTest.css";
 
 const Story = ({ imageLinks, showChinese, disableOption, beforeUnload }) => {
+  const storyImages = Array.isArray(imageLinks) ? imageLinks : [];
+
   return (
     <div id="fullStory">
       <div className="container">
-        {imageLinks.map((link, index) => {
+        {storyImages.map((link, index) => {
           return (
-            <div className="itemContainer">
+            <div className="itemContainer" key={link || index}>
               {`${index + 1}.`}
               <img src={link} alt="story scene" className="storyItem" />
             </div>

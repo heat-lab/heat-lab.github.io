@@ -13,6 +13,11 @@ const Questions = ({
   const [recording, setRecording] = useState(false);
   const [finishedProcessing, setFinishedProcessing] = useState(false);
   const micRef = useRef(null);
+  const questionText = question?.question_text || "";
+  const questionId = question?.question_id ?? "";
+  const questionImages = Array.isArray(question?.image_links)
+    ? question.image_links
+    : [];
 
   const startRecording = () => {
     setRecording(true);
@@ -56,11 +61,11 @@ const Questions = ({
         />
       </div>
       <h1 className="storyQuestion">
-        {question.question_id + ". " + question.question_text}
+        {`${questionId}${questionId !== "" ? ". " : ""}${questionText}`}
       </h1>
-      {question.image_links && question.image_links.length > 0 ? (
+      {questionImages.length > 0 ? (
         <div className="container">
-          {question.image_links.map((item, idx) => (
+          {questionImages.map((item, idx) => (
             <div className="itemContainer" key={idx}>
               <img src={item} alt="story scene" className="storyItem" />
             </div>
