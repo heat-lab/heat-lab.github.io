@@ -7,6 +7,7 @@ import microphoneDisabled from "../Components/mute.png";
 import microphoneEnabled from "../Components/voice.png";
 import GreenButton from "../Components/GreenButton";
 import TextTip from "../Components/TextTip";
+import { isChineseLanguage } from "../utils/language";
 
 let questionAudio;
 
@@ -21,7 +22,7 @@ const toolTipText = [
 
 
 
-const GuidedTutorial = ({setShowGuidedTutorial, showChinese, lang}) => {
+const GuidedTutorial = ({ setShowGuidedTutorial, showChinese, lang }) => {
     const [audioPlaying, setAudioPlaying] = useState(false);
     const [listening, setListening] = useState(false);
     const [beginCountDown, setBeginCountDown] = useState(false);
@@ -31,8 +32,8 @@ const GuidedTutorial = ({setShowGuidedTutorial, showChinese, lang}) => {
     const [tipNum, setTipNum] = useState(1);
 
     const timeoutRef = useRef(null);
-    
-      useEffect(() => {
+
+    useEffect(() => {
         clearTimeout(timeoutRef.current);
         if (!finishedListening) {
             if (countDown > 0) {
@@ -42,163 +43,163 @@ const GuidedTutorial = ({setShowGuidedTutorial, showChinese, lang}) => {
                         setCountDown((prevCountDown) => prevCountDown - 1);
                     }
                 }, 1000);
-                } else {
-                    if (tipNum > 4) {
-                        questionAudio = new Audio(lang === "CN" ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-practice.m4a" : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-practice.m4a");
-                        questionAudio.addEventListener("play", () => {
+            } else {
+                if (tipNum > 4) {
+                    questionAudio = new Audio(isChineseLanguage(lang) ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-practice.m4a" : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-practice.m4a");
+                    questionAudio.addEventListener("play", () => {
                         setAudioPlaying(true);
-                        });
-                        questionAudio.addEventListener("ended", () => {
+                    });
+                    questionAudio.addEventListener("ended", () => {
                         setAudioPlaying(false);
                         setFinishedListening(true);
-                        });
-                        questionAudio.play();
-                    }
-                    else if (tipNum === 4) {
-                        //change UI for this tip, but don't play audio
-                        setAudioPlaying(true);
-                    }
-                }   
+                    });
+                    questionAudio.play();
+                }
+                else if (tipNum === 4) {
+                    //change UI for this tip, but don't play audio
+                    setAudioPlaying(true);
+                }
+            }
         }
-    
+
         return () => {
             clearTimeout(timeoutRef.current);
         }
-      }, [countDown, tipNum]);
-    
+    }, [countDown, tipNum]);
+
     //skip tutorial for testing
     //   useEffect(() => {
     //     setShowGuidedTutorial(false);
     //   }, [])
 
-    return(
+    return (
         <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={1}
             childView={
                 <div>
                     <div className="indicator">
                         {audioPlaying ? (
-                        <div>
-                            <IconButton aria-label="pause" 
-                            style={{marginBottom: '0', padding: '0'}}
-                            disabled>
-                            <PauseCircleIcon
-                                color="primary"
-                                className="pauseButton disabled"
-                            />
-                            </IconButton>
-                            <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={4}
-                                childView={
-                                    <p className = "actionText">{showChinese ? 
-                                        <>仔细听我说的话。</> : 
-                                        <>Listen carefully to what I say.</>}</p>
-                                }
-                            />
-                        </div>
-                        ) : (
-                        <div>
-                            <IconButton
-                                aria-label={finishedListening ? "pause" : "play"}
-                                disabled={finishedListening ? true : false}
-                                style={{marginBottom: '0', padding: '0'}}
-                                onClick={() => {
-                                if (countDown > 0) {
-                                    setCountDown(0);
-                                }
-                                }}
-                            >
-                                {finishedListening ? (
+                            <div>
+                                <IconButton aria-label="pause"
+                                    style={{ marginBottom: '0', padding: '0' }}
+                                    disabled>
                                     <PauseCircleIcon
-                                    color="primary"
-                                    className="pauseButton disabled"
-                                />
-                                ) : (
-                                    <PlayCircleIcon
-                                    color="primary"
-                                    className="pauseButton"
-                                />
-                                )}
-                            </IconButton>
-                            {countDown > 0 ? (
-                                <HighlightArea showChinese={showChinese} tipNum = {tipNum} setTipNum={setTipNum} toolTipNum={3} 
+                                        color="primary"
+                                        className="pauseButton disabled"
+                                    />
+                                </IconButton>
+                                <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={4}
                                     childView={
-                                        <p className = "actionText">{showChinese ? 
-                                            <>{countDown} 秒内播放音频</> : 
-                                            <>Audio playing in {countDown} second(s)</>}</p>
+                                        <p className="actionText">{showChinese ?
+                                            <>仔细听我说的话。</> :
+                                            <>Listen carefully to what I say.</>}</p>
                                     }
                                 />
-                            ) : (
-                                <div> 
-                                    <p className = "actionText">{showChinese ? 
-                                        <>现在，尝试重复我所说的话。</> : 
-                                        <>Now, try to repeat what I said.</>}</p>
-                                    <p className = "actionText subText">{showChinese ? 
-                                        <>如果你不知道，就说出你记得的。</> : 
-                                        <>If you don't know, just say what you remember.</>}</p>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <IconButton
+                                    aria-label={finishedListening ? "pause" : "play"}
+                                    disabled={finishedListening ? true : false}
+                                    style={{ marginBottom: '0', padding: '0' }}
+                                    onClick={() => {
+                                        if (countDown > 0) {
+                                            setCountDown(0);
+                                        }
+                                    }}
+                                >
+                                    {finishedListening ? (
+                                        <PauseCircleIcon
+                                            color="primary"
+                                            className="pauseButton disabled"
+                                        />
+                                    ) : (
+                                        <PlayCircleIcon
+                                            color="primary"
+                                            className="pauseButton"
+                                        />
+                                    )}
+                                </IconButton>
+                                {countDown > 0 ? (
+                                    <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={3}
+                                        childView={
+                                            <p className="actionText">{showChinese ?
+                                                <>{countDown} 秒内播放音频</> :
+                                                <>Audio playing in {countDown} second(s)</>}</p>
+                                        }
+                                    />
+                                ) : (
+                                    <div>
+                                        <p className="actionText">{showChinese ?
+                                            <>现在，尝试重复我所说的话。</> :
+                                            <>Now, try to repeat what I said.</>}</p>
+                                        <p className="actionText subText">{showChinese ?
+                                            <>如果你不知道，就说出你记得的。</> :
+                                            <>If you don't know, just say what you remember.</>}</p>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
-                        {finishedListening ? (
-                            <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={5}
+                    {finishedListening ? (
+                        <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={5}
                             childView={
                                 <div className="listeningContainer">
                                     <div className="microphoneAnimationContainer">
-                                        <div className="listeningBar"/>
-                                        <div className="listeningBar"/>
-                                        <div className="listeningBar"/>
-                                        <div className="listeningBar"/>
+                                        <div className="listeningBar" />
+                                        <div className="listeningBar" />
+                                        <div className="listeningBar" />
+                                        <div className="listeningBar" />
                                         <img
                                             src={microphoneEnabled}
                                             alt="microhpone"
                                             className="enabledMicrophone"
                                         ></img>
-                                        <div className="listeningBar"/>
-                                        <div className="listeningBar"/>
-                                        <div className="listeningBar"/>
-                                        <div className="listeningBar"/>
+                                        <div className="listeningBar" />
+                                        <div className="listeningBar" />
+                                        <div className="listeningBar" />
+                                        <div className="listeningBar" />
                                     </div>
-                                    <p className="listeningText"> {showChinese ? 
-                                        <>麦克风正在录音。</> : 
+                                    <p className="listeningText"> {showChinese ?
+                                        <>麦克风正在录音。</> :
                                         <>Microphone is recording.</>}
                                     </p>
                                 </div>
                             }
                         />
-                        ) : (
-                            <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={2} 
-                                childView={
-                                    <div className="listeningContainer">
-                                        <img
-                                            src={microphoneDisabled}
-                                            alt="crossed out microhphone"
-                                            className="disabledMicrophone"
-                                        >
-                                        </img>
-                                        <p className="listeningText"> {showChinese ? 
-                                            <>请等待我说完。</> : 
-                                            <>Please wait for me to finish speaking.</>}
-                                        </p>
-                                    </div>
-                                }
-                            />
-                        )}
-                        <div style={{height: "40px"}} />
+                    ) : (
+                        <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={2}
+                            childView={
+                                <div className="listeningContainer">
+                                    <img
+                                        src={microphoneDisabled}
+                                        alt="crossed out microhphone"
+                                        className="disabledMicrophone"
+                                    >
+                                    </img>
+                                    <p className="listeningText"> {showChinese ?
+                                        <>请等待我说完。</> :
+                                        <>Please wait for me to finish speaking.</>}
+                                    </p>
+                                </div>
+                            }
+                        />
+                    )}
+                    <div style={{ height: "40px" }} />
                     <div className="submitButtonContainer">
-                        <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={6} 
-                                childView={
-                                    <GreenButton 
-                                        showChinese={showChinese} 
-                                        textEnglish="Next"
-                                        textChinese="下一个"
-                                        disabled={!finishedListening}
-                                        onClick={() => {
-                                            if (finishedListening) {
-                                                setShowGuidedTutorial(false);
-                                            }
-                                    }}/>
-                                }
-                            />
+                        <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={6}
+                            childView={
+                                <GreenButton
+                                    showChinese={showChinese}
+                                    textEnglish="Next"
+                                    textChinese="下一个"
+                                    disabled={!finishedListening}
+                                    onClick={() => {
+                                        if (finishedListening) {
+                                            setShowGuidedTutorial(false);
+                                        }
+                                    }} />
+                            }
+                        />
                     </div>
                 </div>
             }
@@ -206,18 +207,18 @@ const GuidedTutorial = ({setShowGuidedTutorial, showChinese, lang}) => {
     )
 };
 
-const HighlightArea = ({showChinese, tipNum, setTipNum, toolTipNum, childView}) => {
+const HighlightArea = ({ showChinese, tipNum, setTipNum, toolTipNum, childView }) => {
     return (
         tipNum === toolTipNum ? (
-            <div style={{display: "flex", justifyContent: "center"}}>
+            <div style={{ display: "flex", justifyContent: "center" }}>
                 <div className="toolTipContainer">
-                    <div className="grayOutBackground"/>
-                    <div className="pointingToolTip"> 
-                        <TextTip showChinese={showChinese} englishText={toolTipText[tipNum-1][0]} chineseText={toolTipText[tipNum-1][1]} tipNum={tipNum} setTipNum={setTipNum}/>
+                    <div className="grayOutBackground" />
+                    <div className="pointingToolTip">
+                        <TextTip showChinese={showChinese} englishText={toolTipText[tipNum - 1][0]} chineseText={toolTipText[tipNum - 1][1]} tipNum={tipNum} setTipNum={setTipNum} />
                     </div>
                     <div className="highlightedAreaContainer">
-                        <div className="backgroundHighlight"/>
-                        <div className="blockingOverlay"/>
+                        <div className="backgroundHighlight" />
+                        <div className="blockingOverlay" />
                         {childView}
                     </div>
                 </div>

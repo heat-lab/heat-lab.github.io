@@ -14,6 +14,7 @@ import ReinforcementPage from "./ReinforcementPage";
 import CompletionPage from "./CompletionPage";
 import GreenButton from "../Components/GreenButton";
 import { APIBASEURL } from "../config";
+import { isChineseLanguage, isEnglishLanguage } from "../utils/language";
 
 const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
@@ -31,6 +32,8 @@ const Test = ({ type, language }) => {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const isChinese = isChineseLanguage(language);
+  const isEnglish = isEnglishLanguage(language);
 
   const ReinforcementAudio = [
     [
@@ -67,7 +70,7 @@ const Test = ({ type, language }) => {
       setReinforcementID(2);
     }
 
-    if (type === "matching" && language === "chinese" && curId + 1 === 29) {
+    if (type === "matching" && isChinese && curId + 1 === 29) {
       audioLink.current =
         "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-instructions.m4a";
       setShowInstructions(true);
@@ -147,7 +150,7 @@ const Test = ({ type, language }) => {
           requestBody = {
             participantId: username,
             userAns: answers,
-            isEN: language !== "chinese",
+            isEN: !isChinese,
             isAudioTest: false,
             audioSubmissionList: null,
             submissionType: "matching",
@@ -172,7 +175,7 @@ const Test = ({ type, language }) => {
           requestBody = {
             participantId: username,
             audioSubmissionList: audioUrls,
-            isEN: language !== "chinese",
+            isEN: !isChinese,
             isAudioTest: true,
             userAns: null,
             submissionType: "repetition",
@@ -233,17 +236,17 @@ const Test = ({ type, language }) => {
   useEffect(() => {
     if (type === "matching") {
       audioLink.current =
-        language === "chinese"
+        isChinese
           ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-matching-instructions.m4a"
           : "https://non-question-links.s3.us-east-2.amazonaws.com/english-matching-instructions.m4a";
     } else if (type === "repetition") {
       audioLink.current =
-        language === "chinese"
+        isChinese
           ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-instructions.m4a"
           : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-instructions.m4a";
       setShowAudioPermission(true);
     }
-  }, [type, language]);
+  }, [type, isChinese]);
 
   const completed = curId === questions.length;
 
@@ -277,14 +280,14 @@ const Test = ({ type, language }) => {
               showChinese={showChinese}
               imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
               submitAnswers={submitAnswers}
-              audioLink={ReinforcementAudio[3][language === "english" ? 0 : 1]}
+              audioLink={ReinforcementAudio[3][isEnglish ? 0 : 1]}
             />
           ) : showReinforcementPage ? (
             <ReinforcementPage
               showChinese={showChinese}
               audioLink={
                 ReinforcementAudio[reinforcementID][
-                  language === "english" ? 0 : 1
+                isEnglish ? 0 : 1
                 ]
               }
               imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
