@@ -11,6 +11,7 @@ const Retell = ({
   uploadToLambda,
   type,
   disableOption,
+  beforeUnload,
 }) => {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
@@ -80,7 +81,10 @@ const Retell = ({
     try {
       const s3Url = await uploadToLambda(recordedBlob, type);
       console.log("Retell recording stored at:", s3Url);
-      alert("Audio submitted.");
+
+      if (beforeUnload) {
+        beforeUnload();
+      }
     } catch (e) {
       console.error("Failed to submit retell audio", e);
       alert("Failed to submit audio.");
