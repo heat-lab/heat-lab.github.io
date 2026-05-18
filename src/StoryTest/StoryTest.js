@@ -14,6 +14,7 @@ import TranslationButton from "../Components/TranslationButton";
 import AudioPermission from "../Tests/AudioPermission";
 import CompletionPage from "../Tests/CompletionPage";
 import { APIBASEURL } from "../config";
+import { isEnglishLanguage } from "../utils/language";
 
 import "../Tests/Test.scss";
 import "./StoryTest.css";
@@ -93,6 +94,7 @@ const normalizeStoryData = (rawData) => {
 const StoryTest = ({ language }) => {
   const [storyIndex, setStoryIndex] = useState(0);
   const [subStage, setSubStage] = useState(0);
+
   const [audioUrls, setAudioUrls] = useState({});
   const [retellUrls, setRetellUrls] = useState({});
 
@@ -143,6 +145,12 @@ const StoryTest = ({ language }) => {
           }
         );
 
+        if (!response.ok) {
+          console.error("Error fetching story data", response.status);
+          setStories([]);
+          return;
+        }
+
         const rawData = await response.json();
         const normalizedStories = normalizeStoryData(rawData);
 
@@ -166,7 +174,7 @@ const StoryTest = ({ language }) => {
   useEffect(() => {
     clearTimeout(timeoutRef.current);
 
-    if (showLoading || showAudioPermission) return;
+    if (showLoading || showAudioPermission || completed) return;
 
     if (countDown > 0) {
       timeoutRef.current = setTimeout(() => {
@@ -177,11 +185,22 @@ const StoryTest = ({ language }) => {
     }
 
     return () => clearTimeout(timeoutRef.current);
-  }, [countDown, showLoading, showAudioPermission, audioPlaying, subStage]);
+  }, [
+    countDown,
+    showLoading,
+    showAudioPermission,
+    completed,
+    audioPlaying,
+    subStage,
+  ]);
 
   const getAudioLink = () => {
     if (subStage === 0) return narrationInstruction;
-    if (subStage >= 2 && subStage <= 4) return retellingLinks[subStage - 2];
+
+    if (subStage >= 2 && subStage <= 4) {
+      return retellingLinks[subStage - 2];
+    }
+
     if (subStage === 5) return questionInstruction;
 
     const questionIndex = subStage - 6;
@@ -201,6 +220,11 @@ const StoryTest = ({ language }) => {
     if (!link) {
       setDisableOption(false);
       return;
+    }
+
+    if (questionAudio) {
+      questionAudio.pause();
+      questionAudio.currentTime = 0;
     }
 
     setDisableOption(true);
@@ -256,21 +280,39 @@ const StoryTest = ({ language }) => {
     setCompleted(true);
   };
 
-  const recordAudioUrl = (questionId, url, type) => {
+  const recordAudioUrl = (questionId, s3Url, type) => {
+    if (!questionId || !s3Url) {
+      console.error("Missing required parameters:", { questionId, s3Url });
+      return;
+    }
+
+    const storyNumber = storyIndexRef.current + 1;
+    const cleanUrl = s3Url.split("?")[0];
+
     if (type === "retell") {
       setRetellUrls((prev) => ({
         ...prev,
-        [questionId]: url,
+        [storyNumber]: {
+          ...(prev[storyNumber] || {}),
+          [questionId]: cleanUrl,
+        },
       }));
     } else {
       setAudioUrls((prev) => ({
         ...prev,
-        [questionId]: url,
+        [storyNumber]: {
+          ...(prev[storyNumber] || {}),
+          [questionId]: cleanUrl,
+        },
       }));
     }
   };
 
-  const uploadToLambda = async (recordedBlob, type) => {
+  const uploadToLambda = async (recordedBlob, type, explicitQuestionId) => {
+    if (!recordedBlob?.blob) {
+      throw new Error("Missing recorded audio blob");
+    }
+
     setUploadsInProgress((prev) => prev + 1);
 
     try {
@@ -281,8 +323,8 @@ const StoryTest = ({ language }) => {
         reader.readAsDataURL(recordedBlob.blob);
       });
 
-      const questionId = subStageRef.current;
-      const currentStory = storyIndexRef.current + 1;
+      const questionId = explicitQuestionId ?? subStageRef.current;
+      const storyNumber = storyIndexRef.current + 1;
 
       const requestBody = {
         fileType: "audio/webm",
@@ -291,8 +333,8 @@ const StoryTest = ({ language }) => {
         questionId,
         bucketName:
           type === "retell"
-            ? `merls-story-user-audio/retell/${currentStory}`
-            : `merls-story-user-audio/question/${currentStory}`,
+            ? `merls-story-user-audio/retell/${storyNumber}`
+            : `merls-story-user-audio/question/${storyNumber}`,
       };
 
       const response = await fetch(LAMBDAAPIENDPOINT, {
@@ -328,7 +370,7 @@ const StoryTest = ({ language }) => {
         participantId: username,
         audioSubmissionList: audioUrls,
         retellSubmissionList: retellUrls,
-        isEN: true,
+        isEN: isEnglishLanguage(language),
         isAudioTest: true,
         userAns: null,
         submissionType: "story",
@@ -433,6 +475,7 @@ const StoryTest = ({ language }) => {
       ) : subStage === 1 ? (
         <Story
           imageLinks={imageLinks}
+          narrationLinks={narrationLinks}
           showChinese={showChinese}
           disableOption={disableOption}
           beforeUnload={beforeUnload}
@@ -442,7 +485,9 @@ const StoryTest = ({ language }) => {
           imageLinks={getRetellLinks()}
           showChinese={showChinese}
           setShowChinese={setShowChinese}
-          uploadToLambda={uploadToLambda}
+          uploadToLambda={(recordedBlob, type) =>
+            uploadToLambda(recordedBlob, type, subStage - 1)
+          }
           type="retell"
           disableOption={disableOption}
           beforeUnload={beforeUnload}
@@ -458,7 +503,13 @@ const StoryTest = ({ language }) => {
           showChinese={showChinese}
           beforeUnload={beforeUnload}
           question={questions[subStage - 6]}
-          uploadToLambda={uploadToLambda}
+          uploadToLambda={(recordedBlob, type) =>
+            uploadToLambda(
+              recordedBlob,
+              type,
+              questions[subStage - 6]?.question_id ?? subStage
+            )
+          }
           type="question"
           disableOption={disableOption}
         />
