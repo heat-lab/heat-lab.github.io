@@ -12,7 +12,9 @@ const Questions = ({
 }) => {
   const [recording, setRecording] = useState(false);
   const [finishedProcessing, setFinishedProcessing] = useState(false);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
   const micRef = useRef(null);
+
   const questionText = question?.question_text || "";
   const questionId = question?.question_id ?? "";
   const questionImages = Array.isArray(question?.image_links)
@@ -20,6 +22,9 @@ const Questions = ({
     : [];
 
   const startRecording = () => {
+    if (disableOption) return;
+    setRecordedAudioUrl("");
+    setFinishedProcessing(false);
     setRecording(true);
   };
 
@@ -29,24 +34,27 @@ const Questions = ({
 
   const onStop = async (recordedBlob) => {
     setFinishedProcessing(true);
+
     if (!recordedBlob) {
+      setFinishedProcessing(false);
       return;
     }
-    const url = recordedBlob.blobURL;
-    console.log("Local recording URL:", url);
-    const s3Url = await uploadToLambda(recordedBlob, type);
-    console.log("Recording stored at:", s3Url);
-  };
 
-  const onFinish = () => {
-    setRecording(false);
-    setFinishedProcessing(false);
+    setRecordedAudioUrl(recordedBlob.blobURL);
+
+    try {
+      const s3Url = await uploadToLambda(recordedBlob, type);
+      console.log("Recording stored at:", s3Url);
+    } catch (e) {
+      console.error("Failed to upload recording", e);
+    }
   };
 
   useEffect(() => {
     if (finishedProcessing) {
       beforeUnload();
-      onFinish();
+      setRecording(false);
+      setFinishedProcessing(false);
     }
   }, [finishedProcessing, beforeUnload]);
 
@@ -57,12 +65,15 @@ const Questions = ({
           record={recording}
           onStop={onStop}
           ref={micRef}
-          visualSetting="none"
+          visualSetting="frequencyBars"
+          className="reactMicStyle"
         />
       </div>
+
       <h1 className="storyQuestion">
         {`${questionId}${questionId !== "" ? ". " : ""}${questionText}`}
       </h1>
+
       {questionImages.length > 0 ? (
         <div className="container">
           {questionImages.map((item, idx) => (
@@ -74,22 +85,16 @@ const Questions = ({
       ) : (
         <div className="space" />
       )}
+
       {recording ? (
         <div className="recordingActionContainer" onClick={stopRecording}>
           <div className="recordingContainer">
-            <div className="listeningBar" />
-            <div className="listeningBar" />
-            <div className="listeningBar" />
-            <div className="listeningBar" />
-            <p>{showChinese ? "正在聆听..." : "Listening..."}</p>
-            <div className="listeningBar" />
-            <div className="listeningBar" />
-            <div className="listeningBar" />
-            <div className="listeningBar" />
+            <p>
+              {showChinese
+                ? "正在录音...（再次点击提交答案）"
+                : "Recording... (click again to submit answer)"}
+            </p>
           </div>
-          {showChinese
-            ? "（再次点击提交答案）"
-            : "(click again to submit answer)"}
         </div>
       ) : disableOption ? (
         <div className="recordingContainer disabled">
@@ -98,6 +103,19 @@ const Questions = ({
       ) : (
         <div className="recordingContainer enabled" onClick={startRecording}>
           <p>{showChinese ? "点击录制答案" : "Click to record answer"}</p>
+        </div>
+      )}
+
+      {recordedAudioUrl && (
+        <div style={{ marginTop: 16 }}>
+          <p className="actionText">
+            {showChinese ? "回放录音：" : "Playback of your recording:"}
+          </p>
+          <audio
+            controls
+            src={recordedAudioUrl}
+            style={{ width: "300px", maxWidth: "90vw" }}
+          />
         </div>
       )}
     </div>
