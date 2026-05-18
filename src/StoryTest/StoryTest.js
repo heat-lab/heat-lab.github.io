@@ -233,15 +233,54 @@ const StoryTest = ({ language }) => {
     }
   };
 
-  const uploadToLambda = async (recordedBlob, type) => {
-    setUploadsInProgress((prev) => prev + 1);
+const uploadToLambda = async (recordedBlob, type) => {
+  setUploadsInProgress((prev) => prev + 1);
 
+  try {
     const base64Data = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.onerror = reject;
       reader.readAsDataURL(recordedBlob.blob);
     });
+
+    const questionId = subStageRef.current;
+
+    const requestBody = {
+      fileType: "audio/webm",
+      audioData: base64Data,
+      userId: localStorage.getItem("username"),
+      questionId,
+      bucketName:
+        type === "retell"
+          ? `merls-story-user-audio/retell/${currentStory}`
+          : `merls-story-user-audio/question/${currentStory}`,
+    };
+
+    const response = await fetch(LAMBDAAPIENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error("Audio upload failed");
+    }
+
+    const data = await response.json();
+
+    if (data.url) {
+      recordAudioUrl(questionId, data.url, type);
+    }
+
+    return data.url;
+  } catch (error) {
+    console.error("Upload error", error);
+    throw error;
+  } finally {
+    setUploadsInProgress((prev) => prev - 1);
+  }
+};
 
     const questionId = subStageRef.current;
     console.log("current story id:", currentStory);
