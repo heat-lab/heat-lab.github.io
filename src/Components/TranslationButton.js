@@ -8,8 +8,8 @@ const TranslationButton = ({showChinese, setShowChinese}) => {
           onClick={() => setShowChinese(!showChinese)}
         >
           {showChinese
-            ? "Change to English/更改为英语"
-            : "Change to Chinese/更改为中文"}
+            ? "Change to English Text/更改为英语."
+            : "Change to Chinese Text/更改为中文."}
         </button>
     )
 };

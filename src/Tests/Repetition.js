@@ -272,6 +272,7 @@ const Repetition = ({ curQuestion, recordAnswer, showChinese, recordAudioUrl, re
             <div style={{ height: "40px" }} />
             <div className="submitButtonContainer">
                 <GreenButton
+                    className="testNextButton"
                     showChinese={showChinese}
                     textEnglish="Next"
                     textChinese="下一个"

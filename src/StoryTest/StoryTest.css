@@ -28,6 +28,12 @@
   }
 }
 
+.storyNextButton {
+  min-width: 140px;
+  padding: 14px 38px;
+  font-size: 20px;
+}
+
 #retell {
   margin-bottom: 70px;
   display: flex;

@@ -109,6 +109,7 @@ const Home = () => {
 
       {/* Proceed button, only enabled after both videos are played */}
       <BlueButton
+        className="homeNextButton"
         disabled={!childInstructionPlayed}
         showChinese={showChineseInstruction}
         textEnglish={"Next"}

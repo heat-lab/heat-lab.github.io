@@ -189,6 +189,7 @@ const GuidedTutorial = ({ setShowGuidedTutorial, showChinese, lang }) => {
                         <HighlightArea showChinese={showChinese} tipNum={tipNum} setTipNum={setTipNum} toolTipNum={6}
                             childView={
                                 <GreenButton
+                                    className="testNextButton"
                                     showChinese={showChinese}
                                     textEnglish="Next"
                                     textChinese="下一个"

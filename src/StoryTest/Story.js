@@ -18,6 +18,7 @@ const Story = ({ imageLinks, showChinese, disableOption, beforeUnload }) => {
         })}
       </div>
       <GreenButton
+        className="storyNextButton"
         showChinese={showChinese}
         textEnglish="Next"
         textChinese="下一个"
