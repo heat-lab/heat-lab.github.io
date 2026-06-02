@@ -170,6 +170,7 @@ const Question = ({ curQuestion, recordAnswer, showChinese }) => {
       </div>
       <div className="submitButtonContainer">
         <GreenButton 
+            className="testNextButton"
             showChinese={showChinese} 
             textEnglish="Next"
             textChinese="下一个"

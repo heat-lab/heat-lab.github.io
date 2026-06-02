@@ -54,6 +54,12 @@
   margin-top: 2rem;
 }
 
+.homeNextButton {
+  min-width: 140px;
+  padding: 14px 38px;
+  font-size: 20px;
+}
+
 @media (max-height: 750px) {
   .title {
     height: 20px;
