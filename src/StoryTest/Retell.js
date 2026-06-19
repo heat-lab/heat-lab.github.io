@@ -13,37 +13,28 @@ const Retell = ({
   uploadToLambda,
   type,
   disableOption,
+  beforeUnload,
 }) => {
   const [recording, setRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
   const [timeLeft, setTimeLeft] = useState(30);
-  const [maxTime, setMaxTime] = useState(3);
-  const [isPlayingPrompt, setIsPlayingPrompt] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showExceededMessage, setShowExceededMessage] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
 
-  const timerRef = useRef(null);
   const countdownRef = useRef(null);
-  const audioRef = useRef(null);
 
   useEffect(() => {
     setTimeLeft(30);
-    setMaxTime(3);
   }, []);
 
   useEffect(() => {
     return () => {
-      if (audioRef.current instanceof Audio) {
-        audioRef.current.pause();
-      }
-      clearTimeout(timerRef.current);
       clearTimeout(countdownRef.current);
     };
   }, []);
 
   const onStop = async (recorded) => {
-    setAudioUrl(recorded.blobURL);
     setAudioBlob(recorded.blob);
     setRecording(false);
     setHasRecorded(true);
@@ -77,15 +68,15 @@ const Retell = ({
 
   const submitRecording = async () => {
     if (!audioBlob) return;
+    setSubmitting(true);
     try {
-      await uploadToLambda({
-        type,
-        recordAudioBlob: audioBlob,
-        recordAudioUrl: audioUrl,
-      });
-      alert("Audio submitted.");
+      await uploadToLambda(audioBlob, type);
+      beforeUnload();
     } catch (e) {
+      console.error("Failed to submit retell audio:", e);
       alert("Failed to submit audio.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -150,10 +141,10 @@ const Retell = ({
         <div className="submitButtonContainer">
           <BlueButton
             showChinese={showChinese}
-            textEnglish="Submit recording"
+            textEnglish={submitting ? "Submitting..." : "Submit recording"}
             textChinese="提交录音"
             onClick={submitRecording}
-            disabled={!audioBlob}
+            disabled={!audioBlob || submitting}
           />
         </div>
       )}

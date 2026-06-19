@@ -28,14 +28,21 @@ const Questions = ({
   };
 
   const onStop = async (recordedBlob) => {
-    setFinishedProcessing(true);
     if (!recordedBlob) {
+      setFinishedProcessing(true);
       return;
     }
-    const url = recordedBlob.blobURL;
-    console.log("Local recording URL:", url);
-    const s3Url = await uploadToLambda(recordedBlob, type);
-    console.log("Recording stored at:", s3Url);
+
+    try {
+      const url = recordedBlob.blobURL;
+      console.log("Local recording URL:", url);
+      const s3Url = await uploadToLambda(recordedBlob, type);
+      console.log("Recording stored at:", s3Url);
+    } catch (error) {
+      console.error("Failed to upload question audio:", error);
+    } finally {
+      setFinishedProcessing(true);
+    }
   };
 
   const onFinish = () => {
