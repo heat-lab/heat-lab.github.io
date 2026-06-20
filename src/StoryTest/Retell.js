@@ -17,6 +17,7 @@ const Retell = ({
 }) => {
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
   const [timeLeft, setTimeLeft] = useState(30);
   const [submitting, setSubmitting] = useState(false);
   const [showExceededMessage, setShowExceededMessage] = useState(false);
@@ -35,7 +36,12 @@ const Retell = ({
   }, []);
 
   const onStop = async (recorded) => {
+    if (!recorded || !recorded.blob) {
+      return;
+    }
+
     setAudioBlob(recorded.blob);
+    setRecordedAudioUrl(recorded.blobURL || "");
     setRecording(false);
     setHasRecorded(true);
   };
@@ -44,6 +50,7 @@ const Retell = ({
     if (disableOption) return;
     setShowExceededMessage(false);
     setHasRecorded(false);
+    setRecordedAudioUrl("");
     setRecording(true);
     setTimeLeft(30);
 
@@ -104,9 +111,11 @@ const Retell = ({
 
       {recording ? (
         <div className="recordingActionContainer" onClick={stopRecording}>
-          <p className="actionText">
-            {showChinese ? "点击停止录音" : "Tap to stop recording"}
-          </p>
+          <div className="recordingContainer stopRecording">
+            <p className="actionText">
+              {showChinese ? "点击停止录音" : "Tap to stop recording"}
+            </p>
+          </div>
         </div>
       ) : (
         <div
@@ -138,14 +147,23 @@ const Retell = ({
       </p>
 
       {hasRecorded && (
-        <div className="submitButtonContainer">
-          <BlueButton
-            showChinese={showChinese}
-            textEnglish={submitting ? "Submitting..." : "Submit recording"}
-            textChinese="提交录音"
-            onClick={submitRecording}
-            disabled={!audioBlob || submitting}
-          />
+        <div className="retellReviewContainer">
+          {recordedAudioUrl && (
+            <audio
+              controls
+              src={recordedAudioUrl}
+              className="retellAudioPlayer"
+            />
+          )}
+          <div className="submitButtonContainer">
+            <BlueButton
+              showChinese={showChinese}
+              textEnglish={submitting ? "Submitting..." : "Submit recording"}
+              textChinese="提交录音"
+              onClick={submitRecording}
+              disabled={!audioBlob || submitting}
+            />
+          </div>
         </div>
       )}
 
