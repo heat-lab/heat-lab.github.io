@@ -242,7 +242,7 @@ const StoryTest = ({ language }) => {
     }
   };
 
-  const uploadToLambda = async (recordedBlob, type) => {
+  const uploadToLambda = async (recordedBlob, type, explicitQuestionId) => {
     setUploadsInProgress((prev) => prev + 1);
 
     try {
@@ -258,7 +258,7 @@ const StoryTest = ({ language }) => {
         reader.readAsDataURL(blob);
       });
 
-      const questionId = subStageRef.current;
+      const questionId = explicitQuestionId ?? subStageRef.current;
       console.log("current story id:", currentStory);
       console.log("current question id:", questionId);
 
