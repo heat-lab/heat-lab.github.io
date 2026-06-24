@@ -175,7 +175,7 @@ const PracticePage = ({ showChinese, audioLink, setShowPractice, type, language 
             <div className="puppyContainer">
                 <img
                     className="instructionPuppy"
-                    src="https://sites.usc.edu/heatlab/files/2024/10/puppy2.jpg"
+                    src="https://non-question-links.s3.us-east-2.amazonaws.com/puppy2.jpg"
                     alt="puppy raising paw"
                 ></img>
             </div>

@@ -2,21 +2,21 @@ import React from "react";
 import "../Tests/Test.scss";
 import GreenButton from "../Components/GreenButton";
 
-const Instructions = ({showChinese, beforeUnload, disableOption}) => {
+const Instructions = ({ showChinese, beforeUnload, disableOption }) => {
 
-    return(
+    return (
         <div>
             <div className="puppyContainer">
                 <img
                     className="instructionPuppy"
-                    src="https://sites.usc.edu/heatlab/files/2024/10/puppy.png"
+                    src="https://non-question-links.s3.us-east-2.amazonaws.com/puppy.png"
                     alt="puppy staring"
                 ></img>
             </div>
             <div className="submitButtonContainer">
                 <div className="submitButtonContainer">
-                    <GreenButton 
-                        showChinese={showChinese} 
+                    <GreenButton
+                        showChinese={showChinese}
                         textEnglish="Continue"
                         textChinese="继续"
                         disabled={disableOption}
@@ -24,7 +24,7 @@ const Instructions = ({showChinese, beforeUnload, disableOption}) => {
                             if (!disableOption) {
                                 beforeUnload();
                             }
-                        }}/>
+                        }} />
                 </div>
             </div>
         </div>

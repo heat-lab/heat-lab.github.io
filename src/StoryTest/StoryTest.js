@@ -464,9 +464,9 @@ const StoryTest = ({ language }) => {
         <CompletionPage
           showChinese={showChinese}
           audioLink={
-            "https://sites.usc.edu/heatlab/files/2024/11/RV-Englsih-End-of-the-test-narration-w-audio.m4a"
+            "https://non-question-links.s3.us-east-2.amazonaws.com/RV-Englsih-End-of-the-test-narration-w-audio.m4a"
           }
-          imageLink={"https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"}
+          imageLink={"https://non-question-links.s3.us-east-2.amazonaws.com/puppy3.gif"}
           submitAnswers={submitAnswers}
           uploadsInProgress={uploadsInProgress}
         />

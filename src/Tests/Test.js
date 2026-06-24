@@ -278,7 +278,7 @@ const Test = ({ type, language }) => {
           {completed ? (
             <CompletionPage
               showChinese={showChinese}
-              imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
+              imageLink="https://non-question-links.s3.us-east-2.amazonaws.com/puppy3.gif"
               submitAnswers={submitAnswers}
               audioLink={ReinforcementAudio[3][isEnglish ? 0 : 1]}
             />
@@ -290,7 +290,7 @@ const Test = ({ type, language }) => {
                 isEnglish ? 0 : 1
                 ]
               }
-              imageLink="https://sites.usc.edu/heatlab/files/2024/10/puppy3.gif"
+              imageLink="https://non-question-links.s3.us-east-2.amazonaws.com/puppy3.gif"
               setShowReinforcement={setShowReinforcementPage}
             />
           ) : showAudioPermission ? (
