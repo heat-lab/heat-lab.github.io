@@ -16,6 +16,7 @@ import Confirmation from "../Components/Confirmation";
 import Instructions from "./Instructions";
 import AudioPermission from "../Tests/AudioPermission";
 import { APIBASEURL } from "../config";
+import { buildRecordingBin } from "../utils/recordingBins";
 
 let questionAudio;
 let audioLink;
@@ -252,10 +253,13 @@ const StoryTest = ({ language }) => {
       audioData: base64Data,
       userId: localStorage.getItem("username"),
       questionId,
-      bucketName:
-        type === "retell"
-          ? `merls-story-user-audio/retell/${currentStory}`
-          : `merls-story-user-audio/question/${currentStory}`,
+      bucketName: buildRecordingBin({
+        showChinese,
+        task: type === "retell" ? "story-retell" : "story-question",
+        source: "system-recording",
+        storyId: currentStory,
+        questionId,
+      }),
     };
 
     const response = await fetch(LAMBDAAPIENDPOINT, {

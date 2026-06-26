@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { APIBASEURL } from "../config";
+import { buildRecordingBin } from "../utils/recordingBins";
 
 const DESIRED_TYPE = "video/mp4"; // backend can convert if different
 
-const VideoUpload = () => {
+const VideoUpload = ({ language, task = "user-uploaded-video" }) => {
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -39,6 +40,15 @@ const VideoUpload = () => {
         "participantid",
         localStorage.getItem("username") || ""
       );
+      formData.append(
+        "bucketName",
+        buildRecordingBin({
+          language,
+          task,
+          source: "user-uploaded-recording",
+        })
+      );
+      formData.append("source", "browser-upload");
 
       const res = await fetch(`${APIBASEURL}/video-upload`, {
         method: "POST",
