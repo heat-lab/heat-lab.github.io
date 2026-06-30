@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { APIBASEURL } from "../config";
+import { buildRecordingBin } from "../utils/recordingBins";
 
 const VIDEO_MIME = "video/webm"; // typical MediaRecorder output
 
-const VideoRecorder = () => {
+const VideoRecorder = ({ language, task = "user-uploaded-video" }) => {
   const [devices, setDevices] = useState([]);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
   const [streams, setStreams] = useState([]);
@@ -153,6 +154,14 @@ const VideoRecorder = () => {
       formData.append(
         "participantid",
         localStorage.getItem("username") || ""
+      );
+      formData.append(
+        "bucketName",
+        buildRecordingBin({
+          language,
+          task,
+          source: "user-uploaded-recording",
+        })
       );
       formData.append("source", "browser-multi-camera");
 

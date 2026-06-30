@@ -160,8 +160,8 @@ const Retell = ({
 
       <div style={{ marginTop: 32 }}>
         <h2>{showChinese ? "视频回答选项" : "Video response options"}</h2>
-        <VideoRecorder />
-        <VideoUpload />
+        <VideoRecorder language={showChinese ? "CN" : "EN"} task="story-retell" />
+        <VideoUpload language={showChinese ? "CN" : "EN"} task="story-retell" />
       </div>
 
       <div style={{ marginTop: 16 }}>

@@ -15,6 +15,7 @@ import CompletionPage from "./CompletionPage";
 import GreenButton from "../Components/GreenButton";
 import { APIBASEURL } from "../config";
 import { isChineseLanguage, isEnglishLanguage } from "../utils/language";
+import { buildRecordingBin } from "../utils/recordingBins";
 
 const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
@@ -111,7 +112,11 @@ const Test = ({ type, language }) => {
         audioData: base64Data,
         userId: localStorage.getItem("username"),
         questionId,
-        bucketName: "merls-audio",
+        bucketName: buildRecordingBin({
+          isChinese,
+          task: type,
+          source: "system-recording",
+        }),
       };
 
       const response = await fetch(LAMBDAAPIENDPOINT, {
