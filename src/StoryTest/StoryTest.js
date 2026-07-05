@@ -28,6 +28,19 @@ const retellingLinks = [
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
 ];
 
+const isValidAudioLink = (link) => {
+  if (!link || typeof link !== "string") {
+    return false;
+  }
+
+  try {
+    const url = new URL(link.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const normalizeStoryData = (rawData) => {
   if (!Array.isArray(rawData) || rawData.length === 0) {
     return [];
@@ -328,11 +341,18 @@ const StoryTest = ({ language }) => {
   };
 
   const playAudio = () => {
-    const currentAudioLink = audioLinkRef.current;
+    const currentAudioLink = audioLinkRef.current?.trim();
     console.log("playing", currentAudioLink);
-    if (!currentAudioLink) {
-      console.log("audio link null");
-      setAudioPaused(false);
+    if (!isValidAudioLink(currentAudioLink)) {
+      console.log("audio link invalid");
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+        audioRef.current = null;
+      }
+      setAudioPlaying(false);
+      setAudioPaused(true);
       setDisableOption(false);
       return;
     }
@@ -356,6 +376,18 @@ const StoryTest = ({ language }) => {
       setAudioPlaying(true);
     });
     nextAudio.addEventListener("pause", () => setAudioPlaying(false));
+    nextAudio.addEventListener("error", () => {
+      console.error("Error loading audio:", currentAudioLink);
+      if (audioRef.current === nextAudio) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+        audioRef.current = null;
+      }
+      setAudioPlaying(false);
+      setAudioPaused(true);
+      setDisableOption(false);
+    });
     nextAudio.addEventListener("ended", () => {
       setAudioPlaying(false);
       setAudioPaused(false);
