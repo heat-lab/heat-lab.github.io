@@ -12,6 +12,7 @@ const Questions = ({
   uploadToLambda,
   type,
   disableOption,
+  onStartRecording,
 }) => {
   const [recording, setRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
@@ -40,6 +41,7 @@ const Questions = ({
 
     setRecordedBlob(null);
     setRecordedAudioUrl("");
+    onStartRecording?.(); // auto pause the audio
     setRecording(true);
   };
 

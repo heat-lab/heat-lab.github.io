@@ -16,6 +16,7 @@ const Retell = ({
   type,
   disableOption,
   beforeUnload,
+  onStartRecording,
 }) => {
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -62,6 +63,7 @@ const Retell = ({
     setShowExceededMessage(false);
     setHasRecorded(false);
     setAudioBlob(null);
+    onStartRecording?.(); // auto pause the audio
     setRecordedAudioUrl("");
     setRecording(true);
     setTimeLeft(30);

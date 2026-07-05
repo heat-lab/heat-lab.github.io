@@ -131,6 +131,7 @@ const StoryTest = ({ language }) => {
   const [showChinese, setShowChinese] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [audioPaused, setAudioPaused] = useState(false);
+  const [audioAutoPlay, setAudioAutoPlay] = useState(true);
   const [countDown, setCountDown] = useState(3);
   const [disableOption, setDisableOption] = useState(true);
   const [uploadsInProgress, setUploadsInProgress] = useState(0);
@@ -162,12 +163,19 @@ const StoryTest = ({ language }) => {
       timeoutRef.current = setTimeout(() => {
         setCountDown((prev) => prev - 1);
       }, 1000);
-    } else if (!audioPlaying && !audioPaused) {
+    } else if (audioAutoPlay && !audioPlaying && !audioPaused) {
       playAudio();
     }
 
     return () => clearTimeout(timeoutRef.current);
-  }, [countDown, showLoading, showAudioPermission, audioPlaying, audioPaused]);
+  }, [
+    countDown,
+    showLoading,
+    showAudioPermission,
+    audioPlaying,
+    audioPaused,
+    audioAutoPlay,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -353,6 +361,7 @@ const StoryTest = ({ language }) => {
       }
       setAudioPlaying(false);
       setAudioPaused(true);
+      setAudioAutoPlay(false);
       setDisableOption(false);
       return;
     }
@@ -386,11 +395,14 @@ const StoryTest = ({ language }) => {
       }
       setAudioPlaying(false);
       setAudioPaused(true);
+      setAudioAutoPlay(false);
       setDisableOption(false);
     });
     nextAudio.addEventListener("ended", () => {
       setAudioPlaying(false);
       setAudioPaused(false);
+      setAudioAutoPlay(false);
+
       if (disableOption) {
         setDisableOption(false);
       }
@@ -402,6 +414,7 @@ const StoryTest = ({ language }) => {
         console.error("Error playing audio:", error);
         alert("Error playing audio. You can continue to the next step.");
         setAudioPaused(false);
+        setAudioAutoPlay(false);
         setDisableOption(false);
       });
   };
@@ -425,6 +438,7 @@ const StoryTest = ({ language }) => {
         audioRef.current.pause();
       }
       setAudioPaused(true);
+      setAudioAutoPlay(false);
       setAudioPlaying(false);
     } catch {
       console.log("couldn't pause audio");
@@ -452,6 +466,7 @@ const StoryTest = ({ language }) => {
     stopAudio();
     setCountDown(3);
     setAudioPaused(false);
+    setAudioAutoPlay(true);
     setDisableOption(true);
     setCurrentStage((prev) => prev + 1);
 
@@ -586,6 +601,7 @@ const StoryTest = ({ language }) => {
           confirmAction={() => {
             setAudioPlaying(false);
             setAudioPaused(false);
+            setAudioAutoPlay(true);
             setCountDown(3);
             setDisableOption(true);
             setCurrentStage((prev) => prev + 1);
@@ -668,6 +684,7 @@ const StoryTest = ({ language }) => {
             stopAudio();
             advanceSubStage();
           }}
+          onStartRecording={pauseAudio}
           uploadToLambda={uploadToLambda}
           type="retell"
         />
@@ -691,6 +708,7 @@ const StoryTest = ({ language }) => {
           question={questions[subStage - 1]}
           uploadToLambda={uploadToLambda}
           type="question"
+          onStartRecording={pauseAudio}
         />
       ) : (
         <div>page does not exist</div>
