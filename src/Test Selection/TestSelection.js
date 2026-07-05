@@ -16,7 +16,7 @@ const LanguageSelection = () => {
   const [englishRepetitionCompleted, setEnglishRepetitionCompleted] = useState(false);
   const [chineseRepetitionCompleted, setChineseRepetitionCompleted] = useState(false);
   const [englishStoryCompleted, setEnglishStoryCompleted] = useState(false);
-
+  const [chineseStoryCompleted, setChineseStoryCompleted] = useState(false);
   const [selectedButton, setSelectedButton] = useState(0);
   const [showChinese, setShowChinese] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -26,6 +26,7 @@ const LanguageSelection = () => {
     "matching-test-english",
     "repetition-test-chinese",
     "repetition-test-english",
+    "story-test-chinese",
     "story-test-english",
   ];
 
@@ -44,7 +45,7 @@ const LanguageSelection = () => {
     const fetchUserData = async () => {
       try {
         const res = await fetch(
-          `${APIBASEURL}users?participantid=${encodeURIComponent(username)}`,
+          `${APIBASEURL}/users?participantid=${encodeURIComponent(username)}`,
           {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -67,6 +68,7 @@ const LanguageSelection = () => {
         setEnglishRepetitionCompleted(!!user.completedrepetitionen);
         setChineseRepetitionCompleted(!!user.completedrepetitioncn);
         setEnglishStoryCompleted(!!user.completedstoryen);
+        setChineseStoryCompleted(!!user.completedstorycn);
       } catch (err) {
         console.error("Error fetching user data", err);
       }
@@ -92,7 +94,8 @@ const LanguageSelection = () => {
     chineseMatchingCompleted &&
     englishRepetitionCompleted &&
     chineseRepetitionCompleted &&
-    englishStoryCompleted;
+    englishStoryCompleted &&
+    chineseStoryCompleted;
 
   return (
     <div className="languageSelection">
@@ -147,6 +150,15 @@ const LanguageSelection = () => {
           className={`testButton ${selectedButton === 5 ? "selected" : "unselected"
             }`}
           onClick={() => handleTestClick(4)}
+          disabled={chineseStoryCompleted}
+        >
+          {showChinese ? "中文故事复述" : "Chinese Story Retention"}
+        </button>
+
+        <button
+          className={`testButton ${selectedButton === 6 ? "selected" : "unselected"
+            }`}
+          onClick={() => handleTestClick(5)}
           disabled={englishStoryCompleted}
         >
           {showChinese ? "英文故事复述" : "English Story Retention"}

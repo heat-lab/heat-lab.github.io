@@ -16,6 +16,7 @@ import Confirmation from "../Components/Confirmation";
 import Instructions from "./Instructions";
 import AudioPermission from "../Tests/AudioPermission";
 import { APIBASEURL } from "../config";
+import { isChineseLanguage } from "../utils/language";
 import { buildRecordingBin } from "../utils/recordingBins";
 
 let questionAudio;
@@ -332,7 +333,7 @@ const StoryTest = ({ language }) => {
     const requestBody = {
       participantId: username,
       userAns: null,
-      isEN: language !== "CN",
+      isEN: !isChineseLanguage(language),
       isAudioTest: false,
       storySubmissionList: audioUrls,
       retellSubmissionList: retellUrls,
