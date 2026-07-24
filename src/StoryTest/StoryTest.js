@@ -47,13 +47,15 @@ const isValidAudioLink = (link) => {
 };
 
 const normalizeStoryData = (rawData) => {
-  if (!Array.isArray(rawData) || rawData.length === 0) {
+  const rows = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
+
+  if (rows.length === 0) {
     return [];
   }
 
-  // Backward-compatible: payload already grouped by story.
-  if (Array.isArray(rawData[0]?.questions)) {
-    return rawData.map((story, index) => ({
+  // Story-detail payload: narration and questions are separate story fields.
+  if (rows.some((row) => Array.isArray(row?.questions))) {
+    return rows.map((story, index) => ({
       story_id: story.story_id ?? index + 1,
       questions: Array.isArray(story.questions) ? story.questions : [],
       image_links: Array.isArray(story.image_links) ? story.image_links : [],
@@ -64,7 +66,7 @@ const normalizeStoryData = (rawData) => {
   }
 
   // New payload shape: flat list of questions with story_id.
-  const grouped = rawData.reduce((acc, row) => {
+  const grouped = rows.reduce((acc, row) => {
     const storyId = row.story_id ?? 1;
     if (!acc[storyId]) {
       acc[storyId] = {
@@ -198,18 +200,54 @@ const StoryTest = ({ language }) => {
   // fetch story data
   useEffect(() => {
     async function fetchStoryData() {
-      const response = await fetch(
-        `${APIBASEURL}/questions?language=${encodeURIComponent(
-          language
-        )}&type=story`,
-        {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        }
-      );
+      const apiLanguage = isChineseLanguage(language) ? "CN" : "EN";
+      const storyListUrl = `${APIBASEURL}/questions?language=${encodeURIComponent(
+        apiLanguage
+      )}&type=story`;
+      const response = await fetch(storyListUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch story list: ${response.status}`);
+      }
+
       console.log("getting story data");
-      const rawData = await response.json();
-      const normalizedStories = normalizeStoryData(rawData);
+      const storyList = await response.json();
+      const storySummaries = Array.isArray(storyList)
+        ? storyList
+        : storyList
+        ? [storyList]
+        : [];
+      const languageStories = storySummaries.filter(
+        (story) =>
+          !story.language ||
+          String(story.language).toUpperCase() === apiLanguage
+      );
+
+      const storyDetails = await Promise.all(
+        languageStories.map(async (story) => {
+          if (Array.isArray(story.questions)) {
+            return story;
+          }
+
+          const detailUrl = `${storyListUrl}&story_id=${encodeURIComponent(
+            story.story_id
+          )}`;
+          const detailResponse = await fetch(detailUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          });
+          if (!detailResponse.ok) {
+            throw new Error(
+              `Failed to fetch story ${story.story_id}: ${detailResponse.status}`
+            );
+          }
+          return detailResponse.json();
+        })
+      );
+
+      const normalizedStories = normalizeStoryData(storyDetails);
       setStories(normalizedStories);
       console.log("Fetched story data:", normalizedStories);
 
@@ -235,7 +273,10 @@ const StoryTest = ({ language }) => {
       setTotalStages(total);
     }
 
-    fetchStoryData();
+    fetchStoryData().catch((error) => {
+      console.error("Failed to load story data:", error);
+      setShowLoading(false);
+    });
   }, [language]);
 
   const recordAudioUrl = (questionId, s3Url, type) => {
