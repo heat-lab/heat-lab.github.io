@@ -97,8 +97,12 @@ const normalizeStoryData = (rawData) => {
           }
         });
 
-        if (question.narration_audio) {
-          narrationSet.add(question.narration_audio);
+        if (question.narration_audios) {
+          question.narration_audios.forEach((audio) => {
+            if (audio) {
+              narrationSet.add(audio);
+            }
+          });
         }
       });
 
