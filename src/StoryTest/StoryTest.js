@@ -759,6 +759,7 @@ const StoryTest = ({ language }) => {
           }}
           disableOption={disableOption}
           question={questions[subStage - 1]}
+          displayNumber={subStage}
           uploadToLambda={uploadToLambda}
           type="question"
           onStartRecording={pauseAudio}

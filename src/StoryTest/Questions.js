@@ -9,6 +9,7 @@ const Questions = ({
   showChinese,
   beforeUnload,
   question,
+  displayNumber,
   uploadToLambda,
   type,
   disableOption,
@@ -90,7 +91,7 @@ const Questions = ({
         />
       </div>
       <h1 className="storyQuestion">
-        {`${questionId}${questionId !== "" ? ". " : ""}${questionText}`}
+        {`${displayNumber}. ${questionText}`}
       </h1>
       {questionImages.length > 0 ? (
         <div className="container">
