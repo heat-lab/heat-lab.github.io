@@ -24,14 +24,26 @@ let audioLink;
 
 const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
-const narrationInstruction =
+const narrationInstructionEnglish =
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
+const narrationInstructionChinese =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/comprehension/2-dog-story/025%2BMandarin.m4a";
 
-const retellingLinks = [
+const retellingLinksEnglish = [
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_1.m4a",
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
 ];
+const retellingLinksChinese = [
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+];
+
+const questionInstructionEnglish =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/question_instructions.m4a";
+const questionInstructionChinese =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/009%2Bmandarin.m4a";
 
 const isValidAudioLink = (link) => {
   if (!link || typeof link !== "string") {
@@ -119,6 +131,15 @@ const normalizeStoryData = (rawData) => {
 };
 
 const StoryTest = ({ language }) => {
+  const isChinese = isChineseLanguage(language);
+  const narrationInstruction = isChinese
+    ? narrationInstructionChinese
+    : narrationInstructionEnglish;
+  const retellingLinks = isChinese ? retellingLinksChinese : retellingLinksEnglish;
+  const questionInstruction = isChinese
+    ? questionInstructionChinese
+    : questionInstructionEnglish;
+
   // currentStory uses 1-based indexing
   const [currentStory, setCurrentStory] = useState(1);
   // stage 0: narration instr, 1: narration, 2: retell, 3: question instr, 4: questions
@@ -539,8 +560,7 @@ const StoryTest = ({ language }) => {
     } else if (stage === 2) {
       subStageRef.current = subStage;
       if (subStage === 3) {
-        audioLinkRef.current =
-          "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/question_instructions.m4a";
+        audioLinkRef.current = questionInstruction;
         setStage(3);
         setSubStage(1);
       } else {
