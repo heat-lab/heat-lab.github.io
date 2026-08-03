@@ -1,25 +1,79 @@
-// src/Test Selection/TestSelection.js
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
-import TranslationButton from "../Components/TranslationButton";
-import Confirmation from "../Components/Confirmation";
-import "./TestSelection.css";
+
+import TranslationButton from (
+  "../Components/TranslationButton"
+);
+import Confirmation from (
+  "../Components/Confirmation"
+);
 import { APIBASEURL } from "../config";
+
+import "./TestSelection.css";
+
+
+const completionValue = (
+  user,
+  currentName,
+  legacyName
+) =>
+  Boolean(
+    user?.[currentName]
+      ?? user?.[legacyName]
+      ?? false
+  );
+
 
 const LanguageSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [englishMatchingCompleted, setEnglishMatchingCompleted] = useState(false);
-  const [chineseMatchingCompleted, setChineseMatchingCompleted] = useState(false);
-  const [englishRepetitionCompleted, setEnglishRepetitionCompleted] = useState(false);
-  const [chineseRepetitionCompleted, setChineseRepetitionCompleted] = useState(false);
-  const [englishStoryCompleted, setEnglishStoryCompleted] = useState(false);
+  const [
+    englishMatchingCompleted,
+    setEnglishMatchingCompleted,
+  ] = useState(false);
 
-  const [selectedButton, setSelectedButton] = useState(0);
-  const [showChinese, setShowChinese] = useState(true);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [
+    chineseMatchingCompleted,
+    setChineseMatchingCompleted,
+  ] = useState(false);
+
+  const [
+    englishRepetitionCompleted,
+    setEnglishRepetitionCompleted,
+  ] = useState(false);
+
+  const [
+    chineseRepetitionCompleted,
+    setChineseRepetitionCompleted,
+  ] = useState(false);
+
+  const [
+    englishStoryCompleted,
+    setEnglishStoryCompleted,
+  ] = useState(false);
+
+  const [
+    selectedButton,
+    setSelectedButton,
+  ] = useState(0);
+
+  const [
+    showChinese,
+    setShowChinese,
+  ] = useState(true);
+
+  const [
+    showConfirmation,
+    setShowConfirmation,
+  ] = useState(false);
 
   const linkLocations = [
     "matching-test-chinese",
@@ -29,158 +83,314 @@ const LanguageSelection = () => {
     "story-test-english",
   ];
 
-  // Keep cn-zw query param behaviour
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const languageParam = params.get("cn-zw");
-    setShowChinese(languageParam === "true");
+    const params =
+      new URLSearchParams(
+        location.search
+      );
+
+    setShowChinese(
+      params.get("cn-zw") === "true"
+    );
   }, [location]);
 
-  // Fetch completion flags for the logged-in user
   useEffect(() => {
-    const username = localStorage.getItem("username");
-    if (!username) return;
+    const username =
+      localStorage.getItem(
+        "username"
+      );
+
+    if (!username) {
+      return;
+    }
 
     const fetchUserData = async () => {
       try {
-        const res = await fetch(
-          `${APIBASEURL}users?participantid=${encodeURIComponent(username)}`,
+        const response = await fetch(
+          `${APIBASEURL}/users` +
+            `?participantid=` +
+            `${encodeURIComponent(
+              username
+            )}`,
           {
-            method: "GET",
-            headers: { Accept: "application/json" },
+            headers: {
+              Accept: (
+                "application/json"
+              ),
+            },
           }
         );
 
-        if (!res.ok) {
-          console.error("Error fetching user data", res.status);
+        if (!response.ok) {
+          console.error(
+            "Error fetching user data",
+            response.status
+          );
+
           return;
         }
 
-        const data = await res.json();
-        if (!data || data.length === 0) return;
+        const data =
+          await response.json();
 
-        const user = data[0];
+        const user =
+          Array.isArray(data)
+            ? data[0]
+            : null;
 
-        // IMPORTANT: keep these names in sync with backend fields
-        setEnglishMatchingCompleted(!!user.completedmatchingen);
-        setChineseMatchingCompleted(!!user.completedmatchingcn);
-        setEnglishRepetitionCompleted(!!user.completedrepetitionen);
-        setChineseRepetitionCompleted(!!user.completedrepetitioncn);
-        setEnglishStoryCompleted(!!user.completedstoryen);
-      } catch (err) {
-        console.error("Error fetching user data", err);
+        if (!user) {
+          return;
+        }
+
+        setEnglishMatchingCompleted(
+          completionValue(
+            user,
+            "completed_matching_en",
+            "completedmatchingen"
+          )
+        );
+
+        setChineseMatchingCompleted(
+          completionValue(
+            user,
+            "completed_matching_cn",
+            "completedmatchingcn"
+          )
+        );
+
+        setEnglishRepetitionCompleted(
+          completionValue(
+            user,
+            "completed_repetition_en",
+            "completedrepetitionen"
+          )
+        );
+
+        setChineseRepetitionCompleted(
+          completionValue(
+            user,
+            "completed_repetition_cn",
+            "completedrepetitioncn"
+          )
+        );
+
+        setEnglishStoryCompleted(
+          completionValue(
+            user,
+            "completed_story_en",
+            "completedstoryen"
+          )
+        );
+
+      } catch (error) {
+        console.error(
+          "Error fetching user data",
+          error
+        );
       }
     };
 
     fetchUserData();
   }, []);
 
-  const handleTestClick = (index) => {
-    setSelectedButton(index + 1);
+  const handleTestClick = (
+    index
+  ) => {
+    setSelectedButton(
+      index + 1
+    );
+
     setShowConfirmation(true);
   };
 
   const handleStartTest = () => {
-    if (!selectedButton) return;
-    const path = linkLocations[selectedButton - 1];
-    const queryParam = `?cn-zw=${showChinese ? "true" : "false"}`;
-    navigate(`/${path}${queryParam}`);
+    if (!selectedButton) {
+      return;
+    }
+
+    const path =
+      linkLocations[
+        selectedButton - 1
+      ];
+
+    const queryParam =
+      `?cn-zw=` +
+      `${
+        showChinese
+          ? "true"
+          : "false"
+      }`;
+
+    navigate(
+      `/${path}${queryParam}`
+    );
   };
 
   const allCompleted =
-    englishMatchingCompleted &&
-    chineseMatchingCompleted &&
-    englishRepetitionCompleted &&
-    chineseRepetitionCompleted &&
-    englishStoryCompleted;
+    englishMatchingCompleted
+    && chineseMatchingCompleted
+    && englishRepetitionCompleted
+    && chineseRepetitionCompleted
+    && englishStoryCompleted;
+
+  const buttons = [
+    {
+      completed:
+        chineseMatchingCompleted,
+      chinese: "中文配对",
+      english: "Chinese Matching",
+    },
+    {
+      completed:
+        englishMatchingCompleted,
+      chinese: "英文配对",
+      english: "English Matching",
+    },
+    {
+      completed:
+        chineseRepetitionCompleted,
+      chinese: "中文句子复述",
+      english:
+        "Chinese Sentence Repetition",
+    },
+    {
+      completed:
+        englishRepetitionCompleted,
+      chinese: "英文句子复述",
+      english:
+        "English Sentence Repetition",
+    },
+    {
+      completed:
+        englishStoryCompleted,
+      chinese: "英文故事复述",
+      english:
+        "English Story Retention",
+    },
+  ];
 
   return (
-    <div className="languageSelection">
-      <AppBar className="titleContainer">
-        <h1 className="selectionTitle">
-          {showChinese ? "MERLS" : "MERLS"}
+    <div
+      className={
+        "languageSelection"
+      }
+    >
+      <AppBar
+        className={
+          "titleContainer"
+        }
+      >
+        <h1
+          className={
+            "selectionTitle"
+          }
+        >
+          MERLS
         </h1>
+
         <TranslationButton
           showChinese={showChinese}
-          setShowChinese={setShowChinese}
+          setShowChinese={
+            setShowChinese
+          }
         />
       </AppBar>
 
-      <div className="testSelectionGroup">
-        <button
-          className={`testButton ${selectedButton === 1 ? "selected" : "unselected"
-            }`}
-          onClick={() => handleTestClick(0)}
-          disabled={chineseMatchingCompleted}
-        >
-          {showChinese ? "中文配对" : "Chinese Matching"}
-        </button>
+      <div
+        className={
+          "testSelectionGroup"
+        }
+      >
+        {buttons.map(
+          (button, index) => (
+            <button
+              key={button.english}
+              className={
+                `testButton ${
+                  selectedButton ===
+                  index + 1
+                    ? "selected"
+                    : "unselected"
+                }`
+              }
+              onClick={() =>
+                handleTestClick(index)
+              }
+              disabled={
+                button.completed
+              }
+            >
+              {showChinese
+                ? button.chinese
+                : button.english}
 
-        <button
-          className={`testButton ${selectedButton === 2 ? "selected" : "unselected"
-            }`}
-          onClick={() => handleTestClick(1)}
-          disabled={englishMatchingCompleted}
-        >
-          {showChinese ? "英文配对" : "English Matching"}
-        </button>
-
-        <button
-          className={`testButton ${selectedButton === 3 ? "selected" : "unselected"
-            }`}
-          onClick={() => handleTestClick(2)}
-          disabled={chineseRepetitionCompleted}
-        >
-          {showChinese ? "中文句子复述" : "Chinese Sentence Repetition"}
-        </button>
-
-        <button
-          className={`testButton ${selectedButton === 4 ? "selected" : "unselected"
-            }`}
-          onClick={() => handleTestClick(3)}
-          disabled={englishRepetitionCompleted}
-        >
-          {showChinese ? "英文句子复述" : "English Sentence Repetition"}
-        </button>
-
-        <button
-          className={`testButton ${selectedButton === 5 ? "selected" : "unselected"
-            }`}
-          onClick={() => handleTestClick(4)}
-          disabled={englishStoryCompleted}
-        >
-          {showChinese ? "英文故事复述" : "English Story Retention"}
-        </button>
+              {button.completed
+                ? (
+                    showChinese
+                      ? "（已完成）"
+                      : " (Completed)"
+                  )
+                : ""}
+            </button>
+          )
+        )}
       </div>
 
       {allCompleted && (
-        <div className="completionText">
+        <div
+          className={
+            "completionText"
+          }
+        >
           {showChinese
-            ? "恭喜！你已经完成所有任务！"
-            : "Congrats! You've completed all the tests!"}
+            ? (
+                "恭喜！你已经完成" +
+                "所有任务！"
+              )
+            : (
+                "Congrats! You've " +
+                "completed all the tests!"
+              )}
         </div>
       )}
 
       <button
-        className={`selectionButton ${selectedButton ? "selectionEnabled" : "selectionDisabled"
-          }`}
+        className={
+          `selectionButton ${
+            selectedButton
+              ? "selectionEnabled"
+              : "selectionDisabled"
+          }`
+        }
         disabled={!selectedButton}
         onClick={handleStartTest}
       >
-        {showChinese ? "开始" : "Start"}
+        {showChinese
+          ? "开始"
+          : "Start"}
       </button>
 
       {showConfirmation && (
         <Confirmation
-          setShowConfirmation={setShowConfirmation}
+          setShowConfirmation={
+            setShowConfirmation
+          }
           showChinese={showChinese}
-          chineseText="你确定要开始这个测试吗？"
-          englishText="Are you sure you want to start this test?"
-          confirmAction={handleStartTest}
+          chineseText={
+            "你确定要开始这个测试吗？"
+          }
+          englishText={
+            "Are you sure you want " +
+            "to start this test?"
+          }
+          confirmAction={
+            handleStartTest
+          }
         />
       )}
     </div>
   );
 };
+
 
 export default LanguageSelection;
