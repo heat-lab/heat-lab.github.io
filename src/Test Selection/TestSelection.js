@@ -8,12 +8,8 @@ import {
 } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
 
-import TranslationButton from (
-  "../Components/TranslationButton"
-);
-import Confirmation from (
-  "../Components/Confirmation"
-);
+import TranslationButton from "../Components/TranslationButton";
+import Confirmation from "../Components/Confirmation";
 import { APIBASEURL } from "../config";
 
 import "./TestSelection.css";
