@@ -5,15 +5,9 @@ import React, {
 } from "react";
 import { ReactMic } from "react-mic";
 
-import BlueButton from (
-  "../Components/BlueButton"
-);
-import TranslationButton from (
-  "../Components/TranslationButton"
-);
-import VideoRecorder from (
-  "../Components/VideoRecorder"
-);
+import BlueButton from "../Components/BlueButton";
+import TranslationButton from "../Components/TranslationButton";
+import VideoRecorder from "../Components/VideoRecorder";
 
 import "./StoryTest.css";
 
