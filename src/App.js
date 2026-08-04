@@ -6,25 +6,13 @@ import {
 } from "react-router-dom";
 
 import Home from "./Home/Home";
-import UserValidation from (
-  "./Home/UserValidation"
-);
-import ParentQuestions from (
-  "./Home/ParentQuestions"
-);
-import TestSelection from (
-  "./Test Selection/TestSelection"
-);
+import UserValidation from "./Home/UserValidation";
+import ParentQuestions from "./Home/ParentQuestions";
+import TestSelection from "./Test Selection/TestSelection";
 import Test from "./Tests/Test";
-import StoryTest from (
-  "./StoryTest/StoryTest"
-);
-import ExportResult from (
-  "./ExportResult"
-);
-import SideCamera from (
-  "./Components/SideCamera"
-);
+import StoryTest from "./StoryTest/StoryTest";
+import ExportResult from "./ExportResult";
+import SideCamera from "./Components/SideCamera";
 
 
 function App() {
