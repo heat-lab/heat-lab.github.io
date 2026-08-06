@@ -22,7 +22,7 @@ import { buildRecordingBin } from "../utils/recordingBins";
 let questionAudio;
 let audioLink;
 
-const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/media-upload`;
 
 const narrationInstructionEnglish =
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
@@ -354,36 +354,46 @@ const StoryTest = ({ language }) => {
       console.log("current story id:", currentStory);
       console.log("current question id:", questionId);
 
-    const requestBody = {
-      fileType: "audio/webm",
-      audioData: base64Data,
-      userId: localStorage.getItem("username"),
-      questionId,
-      bucketName: buildRecordingBin({
-        showChinese,
-        task: type === "retell" ? "story-retell" : "story-question",
-        source: "system-recording",
-        storyId: currentStory,
+      const participantId = localStorage.getItem("username");
+
+      if (!participantId) {
+        throw new Error("No participant username found.");
+      }
+
+      const requestBody = {
+        mediaData: base64Data,
+        filetype: blob.type || "audio/webm",
+        participantId,
         questionId,
-      }),
-    };
+        testType: type === "retell" ? "story-retell" : "story-question",
+        language: isChineseLanguage(language) ? "CN" : "EN",
+      };
 
       const response = await fetch(LAMBDAAPIENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(requestBody),
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error(`Upload failed with status ${response.status}`);
+        throw new Error(
+          data.details ||
+            data.error ||
+            `Upload failed with status ${response.status}`
+        );
       }
 
-      const data = await response.json();
-      if (data.url) {
-        recordAudioUrl(questionId, data.url, type);
+      console.log("Story audio uploaded:", data);
+
+      if (data.s3_key) {
+        recordAudioUrl(questionId, data.s3_key, type);
       }
 
-      return data.url || null;
+      return data.s3_key || null;
     } catch (error) {
       console.error("Failed to upload story audio:", error);
       return null;
