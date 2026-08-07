@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  BrowserRouter,
+  HashRouter,
   Route,
   Routes,
 } from "react-router-dom";
@@ -16,6 +16,12 @@ import SideCamera from "./Components/SideCamera";
 
 
 function App() {
+  /*
+   * Additional phone cameras use a root
+   * query string rather than a normal app
+   * route. Check for it before starting the
+   * normal React router.
+   */
   const cameraSession =
     new URLSearchParams(
       window.location.search
@@ -24,32 +30,47 @@ function App() {
   if (cameraSession) {
     return (
       <SideCamera
-        sessionId={cameraSession}
+        sessionId={
+          cameraSession
+        }
       />
     );
   }
 
+  /*
+   * HashRouter works reliably on GitHub
+   * Pages even if the browser is refreshed
+   * while the participant is on a test page.
+   */
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route
           path="/"
-          element={<Home />}
+          element={
+            <Home />
+          }
         />
 
         <Route
           path="/login"
-          element={<UserValidation />}
+          element={
+            <UserValidation />
+          }
         />
 
         <Route
           path="/parent-questions"
-          element={<ParentQuestions />}
+          element={
+            <ParentQuestions />
+          }
         />
 
         <Route
           path="/test-selection"
-          element={<TestSelection />}
+          element={
+            <TestSelection />
+          }
         />
 
         <Route
@@ -112,10 +133,12 @@ function App() {
 
         <Route
           path="/download-report"
-          element={<ExportResult />}
+          element={
+            <ExportResult />
+          }
         />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
