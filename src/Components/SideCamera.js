@@ -140,9 +140,27 @@ const SideCamera = ({
     setUploadComplete,
   ] = useState(false);
 
+  /*
+   * Real camera / recording / upload error.
+   *
+   * This should stay visible until the
+   * actual problem is fixed.
+   */
   const [
     error,
     setError,
+  ] = useState("");
+
+  /*
+   * Temporary polling/network error.
+   *
+   * This automatically clears as soon as
+   * communication with the backend works
+   * again.
+   */
+  const [
+    pollError,
+    setPollError,
   ] = useState("");
 
   const [
@@ -164,6 +182,7 @@ const SideCamera = ({
   const startTimerRef = useRef(null);
   const wakeLockRef = useRef(null);
 
+
   useEffect(() => {
     streamRef.current = stream;
 
@@ -173,6 +192,7 @@ const SideCamera = ({
       );
     }
   }, [stream]);
+
 
   const refreshSession = async () => {
     const latest = await requestJson(
@@ -186,12 +206,21 @@ const SideCamera = ({
     return latest;
   };
 
+
   useEffect(() => {
-    refreshSession().catch(
-      (loadError) =>
-        setError(loadError.message)
-    );
+    refreshSession()
+      .then(() => {
+        setPollError("");
+      })
+      .catch(
+        (loadError) => {
+          setPollError(
+            loadError.message
+          );
+        }
+      );
   }, [normalizedSessionId]);
+
 
   const requestWakeLock = async () => {
     try {
@@ -206,6 +235,7 @@ const SideCamera = ({
       // Wake Lock is optional.
     }
   };
+
 
   const uploadBlob = async (
     blob,
@@ -257,13 +287,14 @@ const SideCamera = ({
     }
   };
 
+
   const startLocalRecorder = (
     sessionState
   ) => {
     if (
-      !streamRef.current
-      || recorderRef.current?.state
-        === "recording"
+      !streamRef.current ||
+      recorderRef.current?.state ===
+        "recording"
     ) {
       return;
     }
@@ -281,29 +312,52 @@ const SideCamera = ({
     const options = {
       videoBitsPerSecond: 650000,
       ...(mimeType
-        ? { mimeType }
+        ? {
+            mimeType,
+          }
         : {}),
     };
 
-    const recorder = new MediaRecorder(
-      streamRef.current,
-      options
-    );
+    let recorder;
+
+    try {
+      recorder =
+        new MediaRecorder(
+          streamRef.current,
+          options
+        );
+
+    } catch (recorderError) {
+      setError(
+        "Could not start this " +
+          "phone camera: " +
+          recorderError.message
+      );
+
+      pendingRecordingIdRef.current =
+        "";
+
+      return;
+    }
 
     chunksRef.current = [];
 
     currentRecordingIdRef.current =
       recordingId;
 
-    pendingRecordingIdRef.current = "";
+    pendingRecordingIdRef.current =
+      "";
 
     setUploadComplete(false);
     setRetryUpload(null);
+    setError("");
 
     recorder.ondataavailable = (
       event
     ) => {
-      if (event.data?.size > 0) {
+      if (
+        event.data?.size > 0
+      ) {
         chunksRef.current.push(
           event.data
         );
@@ -332,22 +386,48 @@ const SideCamera = ({
         }
       );
 
+      if (!blob.size) {
+        setError(
+          "The phone recording was empty. " +
+            "Please set up this camera again."
+        );
+
+        return;
+      }
+
       try {
         await uploadBlob(
           blob,
           recordingId
         );
+
       } catch {
-        // Retry controls remain visible.
+        /*
+         * uploadBlob stores the video in
+         * retryUpload so the researcher
+         * can retry without rerecording.
+         */
       }
     };
 
-    recorder.start(1000);
+    try {
+      recorder.start(1000);
 
-    recorderRef.current = recorder;
+      recorderRef.current =
+        recorder;
 
-    setRecording(true);
+      setRecording(true);
+
+    } catch (startError) {
+      recorderRef.current = null;
+
+      setError(
+        "Could not start recording: " +
+          startError.message
+      );
+    }
   };
+
 
   const handleSessionState = (
     latest
@@ -355,13 +435,13 @@ const SideCamera = ({
     setSession(latest);
 
     if (
-      latest.status === "recording"
-      && latest.recordingId
-      && latest.recordingId !==
-        currentRecordingIdRef.current
-      && latest.recordingId !==
-        pendingRecordingIdRef.current
-      && !recorderRef.current
+      latest.status === "recording" &&
+      latest.recordingId &&
+      latest.recordingId !==
+        currentRecordingIdRef.current &&
+      latest.recordingId !==
+        pendingRecordingIdRef.current &&
+      !recorderRef.current
     ) {
       pendingRecordingIdRef.current =
         latest.recordingId;
@@ -374,7 +454,8 @@ const SideCamera = ({
         Number.isFinite(startAt)
           ? Math.max(
               0,
-              startAt - Date.now()
+              startAt -
+                Date.now()
             )
           : 0;
 
@@ -397,34 +478,41 @@ const SideCamera = ({
         "stopped",
         "completed",
         "cancelled",
-      ].includes(latest.status)
+      ].includes(
+        latest.status
+      )
     ) {
       window.clearTimeout(
         startTimerRef.current
       );
 
-      pendingRecordingIdRef.current = "";
+      pendingRecordingIdRef.current =
+        "";
 
       if (
-        recorderRef.current?.state
-        === "recording"
+        recorderRef.current
+          ?.state ===
+        "recording"
       ) {
         recorderRef.current.stop();
       }
     }
 
     if (
-      latest.status === "cancelled"
+      latest.status ===
+      "cancelled"
     ) {
       streamRef.current
         ?.getTracks()
         .forEach(
-          (track) => track.stop()
+          (track) =>
+            track.stop()
         );
 
       setConnected(false);
     }
   };
+
 
   useEffect(() => {
     if (!connected) {
@@ -436,10 +524,29 @@ const SideCamera = ({
         const latest =
           await refreshSession();
 
-        handleSessionState(latest);
+        /*
+         * A successful request means a
+         * previous temporary connection
+         * error is no longer relevant.
+         */
+        setPollError("");
 
-      } catch (pollError) {
-        setError(pollError.message);
+        handleSessionState(
+          latest
+        );
+
+      } catch (
+        pollRequestError
+      ) {
+        /*
+         * Do NOT put this into `error`.
+         *
+         * A single failed poll can simply
+         * be a temporary Wi-Fi hiccup.
+         */
+        setPollError(
+          pollRequestError.message
+        );
       }
     };
 
@@ -456,7 +563,11 @@ const SideCamera = ({
         intervalId
       );
 
-  }, [connected, deviceRole]);
+  }, [
+    connected,
+    deviceRole,
+  ]);
+
 
   useEffect(
     () => () => {
@@ -465,8 +576,9 @@ const SideCamera = ({
       );
 
       if (
-        recorderRef.current?.state
-        === "recording"
+        recorderRef.current
+          ?.state ===
+        "recording"
       ) {
         recorderRef.current.stop();
       }
@@ -474,15 +586,19 @@ const SideCamera = ({
       streamRef.current
         ?.getTracks()
         .forEach(
-          (track) => track.stop()
+          (track) =>
+            track.stop()
         );
 
       wakeLockRef.current
         ?.release?.()
-        .catch(() => {});
+        .catch(
+          () => {}
+        );
     },
     []
   );
+
 
   const joinWithRole = async (
     requestedRole
@@ -499,8 +615,31 @@ const SideCamera = ({
         : {}
     );
 
+
   const connectCamera = async () => {
     setError("");
+    setPollError("");
+
+    if (!normalizedSessionId) {
+      setError(
+        "Missing recording session ID."
+      );
+
+      return;
+    }
+
+    if (
+      !navigator.mediaDevices
+        ?.getUserMedia
+    ) {
+      setError(
+        "This browser does not support " +
+          "camera recording. Try Safari " +
+          "or Chrome on a newer phone."
+      );
+
+      return;
+    }
 
     try {
       const cameraStream =
@@ -523,7 +662,9 @@ const SideCamera = ({
             audio: false,
           });
 
-      setStream(cameraStream);
+      setStream(
+        cameraStream
+      );
 
       streamRef.current =
         cameraStream;
@@ -536,20 +677,28 @@ const SideCamera = ({
         ) || "";
 
       try {
-        joined = await joinWithRole(
-          storedRole
-        );
+        joined =
+          await joinWithRole(
+            storedRole
+          );
 
       } catch (joinError) {
         if (!storedRole) {
           throw joinError;
         }
 
+        /*
+         * The saved role might belong to
+         * an expired/recreated session.
+         * Remove it and ask the backend
+         * for a new position.
+         */
         localStorage.removeItem(
           storageKey
         );
 
-        joined = await joinWithRole("");
+        joined =
+          await joinWithRole("");
       }
 
       const assignedRole =
@@ -558,8 +707,7 @@ const SideCamera = ({
       if (!assignedRole) {
         throw new Error(
           "The backend did not assign " +
-            "this phone a camera " +
-            "position."
+            "this phone a camera position."
         );
       }
 
@@ -568,19 +716,24 @@ const SideCamera = ({
         assignedRole
       );
 
-      setDeviceRole(assignedRole);
-
-      const ready = await postJson(
-        `${APIBASEURL}/` +
-          `recording-sessions/` +
-          `${normalizedSessionId}/ready`,
-        {
-          deviceRole: assignedRole,
-        }
+      setDeviceRole(
+        assignedRole
       );
+
+      const ready =
+        await postJson(
+          `${APIBASEURL}/` +
+            `recording-sessions/` +
+            `${normalizedSessionId}/ready`,
+          {
+            deviceRole:
+              assignedRole,
+          }
+        );
 
       setSession(ready);
       setConnected(true);
+      setPollError("");
 
       await requestWakeLock();
 
@@ -588,10 +741,14 @@ const SideCamera = ({
       streamRef.current
         ?.getTracks()
         .forEach(
-          (track) => track.stop()
+          (track) =>
+            track.stop()
         );
 
+      streamRef.current = null;
+
       setStream(null);
+      setConnected(false);
 
       setError(
         "Could not connect camera: " +
@@ -599,6 +756,7 @@ const SideCamera = ({
       );
     }
   };
+
 
   const retryLastUpload = async () => {
     if (!retryUpload) {
@@ -612,13 +770,26 @@ const SideCamera = ({
       );
 
     } catch {
-      // The error remains visible.
+      /*
+       * The failed upload remains saved
+       * and Retry upload stays available.
+       */
     }
   };
+
 
   const statusMessage = () => {
     if (error) {
       return error;
+    }
+
+    if (pollError) {
+      return (
+        "Temporary connection problem: " +
+        pollError +
+        ". Keep this page open while " +
+        "MERLS reconnects."
+      );
     }
 
     if (uploading) {
@@ -660,6 +831,7 @@ const SideCamera = ({
     );
   };
 
+
   return (
     <main
       style={{
@@ -689,7 +861,9 @@ const SideCamera = ({
           borderRadius: 10,
           background: recording
             ? "#ffe8e8"
-            : "#eef6ff",
+            : pollError
+              ? "#fff4dc"
+              : "#eef6ff",
           fontWeight: 800,
           marginBottom: 16,
         }}
@@ -702,9 +876,12 @@ const SideCamera = ({
       {!connected && (
         <button
           type="button"
-          onClick={connectCamera}
+          onClick={
+            connectCamera
+          }
           style={{
-            padding: "14px 24px",
+            padding:
+              "14px 24px",
             fontSize: 18,
             fontWeight: 800,
             borderRadius: 10,
@@ -745,10 +922,12 @@ const SideCamera = ({
       {session && (
         <p
           style={{
-            overflowWrap: "anywhere",
+            overflowWrap:
+              "anywhere",
           }}
         >
-          Session {session.sessionId}
+          Session{" "}
+          {session.sessionId}
           {" — "}
           {session.readyCount}
           {" of "}
@@ -771,10 +950,20 @@ const SideCamera = ({
       {retryUpload && (
         <button
           type="button"
-          onClick={retryLastUpload}
+          onClick={
+            retryLastUpload
+          }
           disabled={uploading}
+          style={{
+            padding:
+              "10px 18px",
+            fontWeight: 800,
+            marginTop: 8,
+          }}
         >
-          Retry upload
+          {uploading
+            ? "Retrying..."
+            : "Retry upload"}
         </button>
       )}
 
