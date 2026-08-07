@@ -3,154 +3,327 @@ import "./Test.scss";
 import Question from "./Question";
 import Repetition from "./Repetition";
 import GuidedTutorial from "./GuidedTutorial";
-import AudioPermission from "./AudioPermission";
 import Confirmation from "../Components/Confirmation";
 import PauseCircleIcon from "@mui/icons-material/PauseCircle";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import IconButton from "@mui/material/IconButton";
 import GreenButton from "../Components/GreenButton";
-import { isChineseLanguage, isEnglishLanguage } from "../utils/language";
+import {
+    isChineseLanguage,
+    isEnglishLanguage,
+} from "../utils/language";
 
-const Practice = ({ setShowPractice, question, type, language, showChinese, recordAudioUrl, recordAudioBlob }) => {
-    const [showPracticeQuestion, setShowPracticeQuestion] = useState(true);
-    const [showGuidedTutorial, setShowGuidedTutorial] = useState(true);
+
+const Practice = ({
+    setShowPractice,
+    question,
+    type,
+    language,
+    showChinese,
+}) => {
+    const [
+        showPracticeQuestion,
+        setShowPracticeQuestion,
+    ] = useState(true);
+
+    const [
+        showGuidedTutorial,
+        setShowGuidedTutorial,
+    ] = useState(true);
+
 
     const finishPractice = () => {
         setShowPracticeQuestion(false);
-    }
+    };
+
 
     const getAudioLink = () => {
         if (type === "repetition") {
-            return isChineseLanguage(language) ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-transition.m4a" : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-transition.m4a";
+            return isChineseLanguage(language)
+                ? "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-repetition-transition.m4a"
+                : "https://non-question-links.s3.us-east-2.amazonaws.com/english-repetition-transition.m4a";
         }
-        else if (language === "second") {
-            return "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-transition.m4a"
+
+        if (language === "second") {
+            return "https://non-question-links.s3.us-east-2.amazonaws.com/chinese-quantifier-transition.m4a";
         }
-        else if (isEnglishLanguage(language)) {
+
+        if (isEnglishLanguage(language)) {
             return "https://non-question-links.s3.us-east-2.amazonaws.com/english-matching-transition.m4a";
         }
-        else {
-            return "https://non-question-links.s3.us-east-2.amazonaws.com/chiense-matching-transition.m4a";
-        }
-    }
+
+        return "https://non-question-links.s3.us-east-2.amazonaws.com/chiense-matching-transition.m4a";
+    };
+
+
+    /*
+     * Practice repetition recordings should
+     * not be included with the participant's
+     * real test recordings.
+     *
+     * Repetition expects a recordAudioBlob
+     * function, so give it a harmless no-op.
+     */
+    const discardPracticeRecording = () => {
+        // Intentionally do nothing.
+    };
+
 
     return (
         <div>
-            {
-                showPracticeQuestion ? (
-                    type === "matching" ? (
+            {showPracticeQuestion ? (
+                type === "matching" ? (
+                    <div>
+                        <p className="practiceText">
+                            {showChinese
+                                ? "这是一个练习题！"
+                                : "This is a practice question!"}
+                        </p>
+
+                        <Question
+                            curQuestion={question}
+                            recordAnswer={finishPractice}
+                            showChinese={showChinese}
+                        />
+                    </div>
+                ) : type === "repetition" ? (
+                    showGuidedTutorial ? (
+                        <GuidedTutorial
+                            setShowGuidedTutorial={
+                                setShowGuidedTutorial
+                            }
+                            showChinese={showChinese}
+                            lang={language}
+                        />
+                    ) : (
                         <div>
                             <p className="practiceText">
-                                {showChinese ? "这是一个练习题！" : "This a practice question!"}
+                                {showChinese
+                                    ? "这是一个练习题！"
+                                    : "This is a practice question!"}
                             </p>
-                            <Question
+
+                            <Repetition
                                 curQuestion={question}
                                 recordAnswer={finishPractice}
                                 showChinese={showChinese}
+                                recordAudioBlob={
+                                    discardPracticeRecording
+                                }
                             />
                         </div>
-                    ) : type === "repetition" ? (
-                        showGuidedTutorial ? (
-                            <GuidedTutorial setShowGuidedTutorial={setShowGuidedTutorial} showChinese={showChinese} lang={language} />
-                        ) : (
-                            <div>
-                                <p className="practiceText">
-                                    {showChinese ? "这是一个练习题！" : "This a practice question!"}
-                                </p>
-                                <Repetition
-                                    curQuestion={question}
-                                    recordAnswer={finishPractice}
-                                    showChinese={showChinese}
-                                    recordAudioBlob={recordAudioBlob}
-                                />
-                            </div>
-                        )
-                    ) : (
-                        <p> type invalid </p>
                     )
                 ) : (
-                    <PracticePage showChinese={showChinese} audioLink={getAudioLink()} setShowPractice={setShowPractice} type={type} language={language} />
+                    <p>type invalid</p>
                 )
-            }
+            ) : (
+                <PracticePage
+                    showChinese={showChinese}
+                    audioLink={getAudioLink()}
+                    setShowPractice={setShowPractice}
+                    type={type}
+                    language={language}
+                />
+            )}
         </div>
-    )
+    );
 };
+
 
 let instructionAudio;
 
-const PracticePage = ({ showChinese, audioLink, setShowPractice, type, language }) => {
 
-    const [audioPlaying, setAudioPlaying] = useState(false);
-    const [replay, setReplay] = useState(false);
-    const [finishedListening, setFinishedListening] = useState(false);
-    const [countDown, setCountDown] = useState(3);
-    const [paused, setPaused] = useState(false);
-    const [showConfirmation, setShowConfirmation] = useState(false);
+const PracticePage = ({
+    showChinese,
+    audioLink,
+    setShowPractice,
+    type,
+    language,
+}) => {
+    const [
+        audioPlaying,
+        setAudioPlaying,
+    ] = useState(false);
+
+    const [
+        replay,
+        setReplay,
+    ] = useState(false);
+
+    const [
+        finishedListening,
+        setFinishedListening,
+    ] = useState(false);
+
+    const [
+        countDown,
+        setCountDown,
+    ] = useState(3);
+
+    const [
+        showConfirmation,
+        setShowConfirmation,
+    ] = useState(false);
 
     const timeoutRef = useRef(null);
 
+
     useEffect(() => {
-        clearTimeout(timeoutRef.current);
+        clearTimeout(
+            timeoutRef.current
+        );
+
         if (countDown > 0) {
-            timeoutRef.current = setTimeout(() => {
-                setCountDown((prevCountDown) => prevCountDown - 1);
-            }, 1000);
+            timeoutRef.current =
+                setTimeout(() => {
+                    setCountDown(
+                        (previous) =>
+                            previous - 1
+                    );
+                }, 1000);
         } else {
-            instructionAudio = new Audio(audioLink);
-            instructionAudio.addEventListener("play", () => {
-                setAudioPlaying(true);
-            });
-            instructionAudio.addEventListener("ended", () => {
-                setAudioPlaying(false);
-                setFinishedListening(true);
-            });
-            instructionAudio.play();
+            instructionAudio =
+                new Audio(audioLink);
+
+            instructionAudio.addEventListener(
+                "play",
+                () => {
+                    setAudioPlaying(true);
+                }
+            );
+
+            instructionAudio.addEventListener(
+                "ended",
+                () => {
+                    setAudioPlaying(false);
+                    setFinishedListening(true);
+                }
+            );
+
+            instructionAudio
+                .play()
+                .catch((error) => {
+                    console.error(
+                        "Could not play practice transition audio:",
+                        error
+                    );
+
+                    setAudioPlaying(false);
+                    setFinishedListening(true);
+                });
         }
 
         return () => {
-            clearTimeout(timeoutRef.current);
-        }
-    }, [countDown]);
+            clearTimeout(
+                timeoutRef.current
+            );
+        };
+    }, [countDown, audioLink]);
 
+
+    /*
+     * Only replay when replay === true.
+     *
+     * Previously this effect also ran again
+     * after setReplay(false), causing the
+     * audio to potentially start twice.
+     */
     useEffect(() => {
-        if (countDown < 1) {
+        if (
+            countDown < 1 &&
+            replay
+        ) {
             setReplay(false);
-            instructionAudio = new Audio(audioLink);
-            instructionAudio.addEventListener("play", () => {
-                setAudioPlaying(true);
-            });
-            instructionAudio.addEventListener("ended", () => {
-                setAudioPlaying(false);
-            });
-            instructionAudio.play();
+
+            if (instructionAudio) {
+                instructionAudio.pause();
+            }
+
+            instructionAudio =
+                new Audio(audioLink);
+
+            instructionAudio.addEventListener(
+                "play",
+                () => {
+                    setAudioPlaying(true);
+                }
+            );
+
+            instructionAudio.addEventListener(
+                "ended",
+                () => {
+                    setAudioPlaying(false);
+                }
+            );
+
+            instructionAudio
+                .play()
+                .catch((error) => {
+                    console.error(
+                        "Could not replay practice transition audio:",
+                        error
+                    );
+
+                    setAudioPlaying(false);
+                });
         }
-    }, [replay])
+    }, [
+        replay,
+        countDown,
+        audioLink,
+    ]);
+
+
+    useEffect(
+        () => () => {
+            clearTimeout(
+                timeoutRef.current
+            );
+
+            if (instructionAudio) {
+                instructionAudio.pause();
+            }
+        },
+        []
+    );
+
 
     return (
         <div>
             <div className="indicator">
                 {audioPlaying ? (
                     <div>
-                        <IconButton aria-label="pause" disabled>
+                        <IconButton
+                            aria-label="pause"
+                            disabled
+                        >
                             <PauseCircleIcon
                                 color="primary"
-                                className="pauseButton disabled"
+                                className={
+                                    "pauseButton disabled"
+                                }
                             />
                         </IconButton>
-                        <p className="actionText">{showChinese ?
-                            <>播放说明...</> :
-                            <>Playing instructions...</>}</p>
+
+                        <p className="actionText">
+                            {showChinese
+                                ? "播放说明..."
+                                : "Playing instructions..."}
+                        </p>
                     </div>
                 ) : (
                     <div>
                         <IconButton
                             aria-label="play"
-                            style={{ marginBottom: '0' }}
+                            style={{
+                                marginBottom: "0",
+                            }}
                             onClick={() => {
-                                if (countDown > 0) {
+                                if (
+                                    countDown > 0
+                                ) {
                                     setCountDown(0);
-                                }
-                                else {
+                                } else {
                                     setReplay(true);
                                 }
                             }}
@@ -160,62 +333,137 @@ const PracticePage = ({ showChinese, audioLink, setShowPractice, type, language 
                                 className="pauseButton"
                             />
                         </IconButton>
+
                         {countDown > 0 ? (
-                            <p className="actionText">{showChinese ?
-                                <>{countDown} 秒内播放音频</> :
-                                <>Audio playing in {countDown} second(s)</>}</p>
+                            <p className="actionText">
+                                {showChinese ? (
+                                    <>
+                                        {countDown}
+                                        {" 秒内播放音频"}
+                                    </>
+                                ) : (
+                                    <>
+                                        {
+                                            "Audio playing in "
+                                        }
+                                        {countDown}
+                                        {
+                                            " second(s)"
+                                        }
+                                    </>
+                                )}
+                            </p>
                         ) : (
-                            <p className="actionText">{showChinese ?
-                                <>再听一次指示?</> :
-                                <>Listen to instructions again?</>}</p>
+                            <p className="actionText">
+                                {showChinese
+                                    ? "再听一次指示?"
+                                    : "Listen to instructions again?"}
+                            </p>
                         )}
                     </div>
                 )}
             </div>
+
             <div className="puppyContainer">
                 <img
                     className="instructionPuppy"
-                    src="https://non-question-links.s3.us-east-2.amazonaws.com/puppy2.jpg"
+                    src={
+                        "https://non-question-links.s3.us-east-2.amazonaws.com/puppy2.jpg"
+                    }
                     alt="puppy raising paw"
-                ></img>
+                />
             </div>
-            <div className="submitButtonContainer">
+
+            <div
+                className={
+                    "submitButtonContainer"
+                }
+            >
                 <GreenButton
                     showChinese={showChinese}
-                    textEnglish={language === "second" ? "Continue" : "Begin Test"}
+                    textEnglish={
+                        language === "second"
+                            ? "Continue"
+                            : "Begin Test"
+                    }
                     textChinese="开始测试"
-                    disabled={!finishedListening}
+                    disabled={
+                        !finishedListening
+                    }
                     onClick={() => {
-                        if (finishedListening) {
-                            if (language === "second") {
-                                if (instructionAudio) {
-                                    instructionAudio.pause();
-                                }
-                                setShowPractice(false);
-                            }
-                            else {
-                                setShowConfirmation(true);
-                            }
+                        if (
+                            !finishedListening
+                        ) {
+                            return;
                         }
-                    }} />
-            </div>
-            <div>
-                {showConfirmation &&
-                    <Confirmation
-                        showChinese={showChinese}
-                        setShowConfirmation={setShowConfirmation}
-                        confirmAction={() => {
-                            if (instructionAudio) {
+
+                        if (
+                            language === "second"
+                        ) {
+                            if (
+                                instructionAudio
+                            ) {
                                 instructionAudio.pause();
                             }
+
                             setShowPractice(false);
-                        }}
-                        englishText={`Are you sure you want to begin the ${isEnglishLanguage(language) ? "English" : "Chinese"} ${type === "repetition" ? "repetition" : "matching"} test?`}
-                        chineseText={`您确定要开始${isEnglishLanguage(language) ? "英文" : "中文"}${type === "repetition" ? "重复" : "匹配"}测试吗？`}
-                    />}
+
+                        } else {
+                            setShowConfirmation(true);
+                        }
+                    }}
+                />
             </div>
+
+            {showConfirmation && (
+                <Confirmation
+                    showChinese={
+                        showChinese
+                    }
+                    setShowConfirmation={
+                        setShowConfirmation
+                    }
+                    confirmAction={() => {
+                        if (
+                            instructionAudio
+                        ) {
+                            instructionAudio.pause();
+                        }
+
+                        setShowPractice(false);
+                    }}
+                    englishText={
+                        `Are you sure you want ` +
+                        `to begin the ${
+                            isEnglishLanguage(
+                                language
+                            )
+                                ? "English"
+                                : "Chinese"
+                        } ${
+                            type === "repetition"
+                                ? "repetition"
+                                : "matching"
+                        } test?`
+                    }
+                    chineseText={
+                        `您确定要开始${
+                            isEnglishLanguage(
+                                language
+                            )
+                                ? "英文"
+                                : "中文"
+                        }${
+                            type === "repetition"
+                                ? "重复"
+                                : "匹配"
+                        }测试吗？`
+                    }
+                />
+            )}
         </div>
-    )
+    );
 };
+
 
 export default Practice;
