@@ -43,9 +43,7 @@ const chooseVideoMimeType = () => {
     choices.find(
       (choice) =>
         window.MediaRecorder &&
-        MediaRecorder.isTypeSupported(
-          choice
-        )
+        MediaRecorder.isTypeSupported(choice)
     ) || ""
   );
 };
@@ -55,12 +53,16 @@ const blobToDataUrl = (blob) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = () =>
-      resolve(reader.result);
-
+    reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
 
     reader.readAsDataURL(blob);
+  });
+
+
+const sleep = (milliseconds) =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
   });
 
 
@@ -106,9 +108,7 @@ const postJson = (
   requestJson(url, {
     method: "POST",
     headers: {
-      "Content-Type": (
-        "application/json"
-      ),
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
@@ -182,6 +182,7 @@ const VideoRecorder = forwardRef(
 
     const startTimerRef = useRef(null);
 
+
     const mergeSession = (
       nextSession
     ) => {
@@ -197,19 +198,21 @@ const VideoRecorder = forwardRef(
       });
     };
 
+
     useEffect(() => {
       sessionRef.current = session;
     }, [session]);
+
 
     useEffect(() => {
       streamRef.current = stream;
 
       if (previewRef.current) {
-        previewRef.current.srcObject = (
-          stream || null
-        );
+        previewRef.current.srcObject =
+          stream || null;
       }
     }, [stream]);
+
 
     useEffect(() => {
       if (!session?.sessionId) {
@@ -218,16 +221,17 @@ const VideoRecorder = forwardRef(
 
       const poll = async () => {
         try {
-          const latest = await requestJson(
-            `${APIBASEURL}/` +
-              `recording-sessions/` +
-              `${session.sessionId}`
-          );
+          const latest =
+            await requestJson(
+              `${APIBASEURL}/recording-sessions/${session.sessionId}`
+            );
 
           mergeSession(latest);
 
         } catch (pollError) {
-          setError(pollError.message);
+          setError(
+            pollError.message
+          );
         }
       };
 
@@ -239,12 +243,14 @@ const VideoRecorder = forwardRef(
           750
         );
 
-      return () =>
+      return () => {
         window.clearInterval(
           intervalId
         );
+      };
 
     }, [session?.sessionId]);
+
 
     useEffect(
       () => () => {
@@ -253,8 +259,8 @@ const VideoRecorder = forwardRef(
         );
 
         if (
-          recorderRef.current?.state
-          === "recording"
+          recorderRef.current?.state ===
+          "recording"
         ) {
           recorderRef.current.stop();
         }
@@ -262,23 +268,27 @@ const VideoRecorder = forwardRef(
         streamRef.current
           ?.getTracks()
           .forEach(
-            (track) => track.stop()
+            (track) =>
+              track.stop()
           );
       },
       []
     );
 
+
     const stopLocalStream = () => {
       streamRef.current
         ?.getTracks()
         .forEach(
-          (track) => track.stop()
+          (track) =>
+            track.stop()
         );
 
       streamRef.current = null;
 
       setStream(null);
     };
+
 
     const changeCameraCount = (
       event
@@ -287,19 +297,23 @@ const VideoRecorder = forwardRef(
         event.target.value
       );
 
-      setCameraCount(nextCount);
+      setCameraCount(
+        nextCount
+      );
+
       setError("");
       setMessage("");
       setSession(null);
+      setLastFailedUpload(null);
 
       sessionRef.current = null;
 
-      uploadPromiseRef.current = (
-        Promise.resolve()
-      );
+      uploadPromiseRef.current =
+        Promise.resolve();
 
       stopLocalStream();
     };
+
 
     const setupCameras = async () => {
       setError("");
@@ -308,11 +322,11 @@ const VideoRecorder = forwardRef(
 
       if (cameraCount === 0) {
         setSession(null);
+
         sessionRef.current = null;
 
-        uploadPromiseRef.current = (
-          Promise.resolve()
-        );
+        uploadPromiseRef.current =
+          Promise.resolve();
 
         stopLocalStream();
 
@@ -356,35 +370,38 @@ const VideoRecorder = forwardRef(
               audio: false,
             });
 
-        setStream(cameraStream);
-
-        streamRef.current = (
+        setStream(
           cameraStream
         );
 
-        const created = await postJson(
-          `${APIBASEURL}/recording-sessions`,
-          {
-            participantId,
-            testType,
-            language,
-            questionId,
-            cameraCount,
-            frontendBaseUrl:
-              window.location.origin,
-          }
+        streamRef.current =
+          cameraStream;
+
+        const created =
+          await postJson(
+            `${APIBASEURL}/recording-sessions`,
+            {
+              participantId,
+              testType,
+              language,
+              questionId,
+              cameraCount,
+              frontendBaseUrl:
+                window.location.origin,
+            }
+          );
+
+        mergeSession(
+          created
         );
 
-        mergeSession(created);
-
-        const ready = await postJson(
-          `${APIBASEURL}/` +
-            `recording-sessions/` +
-            `${created.sessionId}/ready`,
-          {
-            deviceRole: "main",
-          }
-        );
+        const ready =
+          await postJson(
+            `${APIBASEURL}/recording-sessions/${created.sessionId}/ready`,
+            {
+              deviceRole: "main",
+            }
+          );
 
         mergeSession({
           ...created,
@@ -419,6 +436,7 @@ const VideoRecorder = forwardRef(
       }
     };
 
+
     const uploadMainBlob = async (
       blob,
       recordingSession
@@ -429,25 +447,26 @@ const VideoRecorder = forwardRef(
 
       try {
         const mediaData =
-          await blobToDataUrl(blob);
+          await blobToDataUrl(
+            blob
+          );
 
-        const uploaded = await postJson(
-          `${APIBASEURL}/media-upload`,
-          {
-            mediaData,
-            filetype: (
-              blob.type ||
-              "video/webm"
-            ),
-            sessionId: (
-              recordingSession.sessionId
-            ),
-            deviceRole: "main",
-            recordingId: (
-              recordingSession.recordingId
-            ),
-          }
-        );
+        const uploaded =
+          await postJson(
+            `${APIBASEURL}/media-upload`,
+            {
+              mediaData,
+              filetype:
+                blob.type ||
+                "video/webm",
+              sessionId:
+                recordingSession.sessionId,
+              deviceRole:
+                "main",
+              recordingId:
+                recordingSession.recordingId,
+            }
+          );
 
         setMessage(
           "Laptop video uploaded " +
@@ -456,19 +475,20 @@ const VideoRecorder = forwardRef(
 
         const latest =
           await requestJson(
-            `${APIBASEURL}/` +
-              `recording-sessions/` +
-              `${recordingSession.sessionId}`
+            `${APIBASEURL}/recording-sessions/${recordingSession.sessionId}`
           );
 
-        mergeSession(latest);
+        mergeSession(
+          latest
+        );
 
         return uploaded;
 
       } catch (uploadError) {
         setLastFailedUpload({
           blob,
-          session: recordingSession,
+          session:
+            recordingSession,
         });
 
         setError(
@@ -483,30 +503,36 @@ const VideoRecorder = forwardRef(
       }
     };
 
-    const retryMainUpload = async () => {
-      if (!lastFailedUpload) {
-        return;
-      }
 
-      uploadPromiseRef.current =
-        uploadMainBlob(
-          lastFailedUpload.blob,
-          lastFailedUpload.session
-        );
+    const retryMainUpload =
+      async () => {
+        if (!lastFailedUpload) {
+          return;
+        }
 
-      try {
-        await uploadPromiseRef.current;
-      } catch {
-        // The visible component already
-        // displays the upload error.
-      }
-    };
+        uploadPromiseRef.current =
+          uploadMainBlob(
+            lastFailedUpload.blob,
+            lastFailedUpload.session
+          );
+
+        try {
+          await uploadPromiseRef.current;
+
+        } catch {
+          // Error is already displayed.
+        }
+      };
+
 
     const startLocalRecorderAt = (
       recordingSession
     ) =>
       new Promise(
-        (resolve, reject) => {
+        (
+          resolve,
+          reject
+        ) => {
           const activeStream =
             streamRef.current;
 
@@ -521,15 +547,20 @@ const VideoRecorder = forwardRef(
             return;
           }
 
-          const startTime = Date.parse(
-            recordingSession.startedAt || ""
-          );
+          const startTime =
+            Date.parse(
+              recordingSession.startedAt ||
+                ""
+            );
 
           const delay =
-            Number.isFinite(startTime)
+            Number.isFinite(
+              startTime
+            )
               ? Math.max(
                   0,
-                  startTime - Date.now()
+                  startTime -
+                    Date.now()
                 )
               : 0;
 
@@ -538,225 +569,353 @@ const VideoRecorder = forwardRef(
           );
 
           startTimerRef.current =
-            window.setTimeout(() => {
-              try {
-                const mimeType =
-                  chooseVideoMimeType();
+            window.setTimeout(
+              () => {
+                try {
+                  const mimeType =
+                    chooseVideoMimeType();
 
-                const options = {
-                  videoBitsPerSecond:
-                    700000,
-                  ...(mimeType
-                    ? { mimeType }
-                    : {}),
-                };
-
-                const recorder =
-                  new MediaRecorder(
-                    activeStream,
-                    options
-                  );
-
-                chunksRef.current = [];
-
-                let resolveUpload;
-                let rejectUpload;
-
-                uploadPromiseRef.current =
-                  new Promise(
-                    (
-                      uploadResolve,
-                      uploadReject
-                    ) => {
-                      resolveUpload =
-                        uploadResolve;
-
-                      rejectUpload =
-                        uploadReject;
-                    }
-                  );
-
-                recorder.ondataavailable =
-                  (event) => {
-                    if (
-                      event.data?.size > 0
-                    ) {
-                      chunksRef.current.push(
-                        event.data
-                      );
-                    }
+                  const options = {
+                    videoBitsPerSecond:
+                      700000,
+                    ...(mimeType
+                      ? {
+                          mimeType,
+                        }
+                      : {}),
                   };
 
-                recorder.onerror = (
-                  event
-                ) => {
-                  const recorderError =
-                    event.error ||
-                    new Error(
-                      "Laptop recorder failed"
+                  const recorder =
+                    new MediaRecorder(
+                      activeStream,
+                      options
                     );
 
-                  setError(
-                    recorderError.message
-                  );
+                  chunksRef.current = [];
 
-                  rejectUpload(
-                    recorderError
-                  );
-                };
+                  let resolveUpload;
+                  let rejectUpload;
 
-                recorder.onstop =
-                  async () => {
-                    setRecording(false);
+                  uploadPromiseRef.current =
+                    new Promise(
+                      (
+                        uploadResolve,
+                        uploadReject
+                      ) => {
+                        resolveUpload =
+                          uploadResolve;
 
-                    const blob =
-                      new Blob(
-                        chunksRef.current,
-                        {
-                          type:
-                            recorder.mimeType ||
-                            mimeType ||
-                            "video/webm",
-                        }
-                      );
+                        rejectUpload =
+                          uploadReject;
+                      }
+                    );
 
-                    try {
-                      const result =
-                        await uploadMainBlob(
-                          blob,
-                          recordingSession
+                  recorder.ondataavailable =
+                    (event) => {
+                      if (
+                        event.data
+                          ?.size > 0
+                      ) {
+                        chunksRef.current.push(
+                          event.data
+                        );
+                      }
+                    };
+
+                  recorder.onerror =
+                    (event) => {
+                      const recorderError =
+                        event.error ||
+                        new Error(
+                          "Laptop recorder failed"
                         );
 
-                      resolveUpload(
-                        result
+                      setError(
+                        recorderError.message
                       );
 
-                    } catch (
-                      uploadError
-                    ) {
                       rejectUpload(
-                        uploadError
+                        recorderError
                       );
-                    }
-                  };
+                    };
 
-                recorder.start(1000);
+                  recorder.onstop =
+                    async () => {
+                      setRecording(
+                        false
+                      );
 
-                recorderRef.current =
-                  recorder;
+                      const blob =
+                        new Blob(
+                          chunksRef.current,
+                          {
+                            type:
+                              recorder.mimeType ||
+                              mimeType ||
+                              "video/webm",
+                          }
+                        );
 
-                setRecording(true);
+                      try {
+                        const result =
+                          await uploadMainBlob(
+                            blob,
+                            recordingSession
+                          );
 
-                setMessage(
-                  "Recording video from " +
-                    "the laptop camera."
-                );
+                        resolveUpload(
+                          result
+                        );
 
-                resolve();
+                      } catch (
+                        uploadError
+                      ) {
+                        rejectUpload(
+                          uploadError
+                        );
+                      }
+                    };
 
-              } catch (
-                recorderError
-              ) {
-                reject(recorderError);
-              }
-            }, delay);
+                  recorder.start(
+                    1000
+                  );
+
+                  recorderRef.current =
+                    recorder;
+
+                  setRecording(
+                    true
+                  );
+
+                  setMessage(
+                    "Recording video from " +
+                      "the laptop camera."
+                  );
+
+                  resolve();
+
+                } catch (
+                  recorderError
+                ) {
+                  reject(
+                    recorderError
+                  );
+                }
+              },
+              delay
+            );
         }
       );
 
-    const startRecording = async () => {
-      if (cameraCount === 0) {
-        return {
-          videoEnabled: false,
-        };
-      }
 
-      if (
-        !sessionRef.current?.sessionId
-        || !streamRef.current
-      ) {
-        throw new Error(
-          "The researcher must choose " +
-            "a video option and click " +
-            "Set up cameras first."
-        );
-      }
+    const startRecording =
+      async () => {
+        if (
+          cameraCount === 0
+        ) {
+          return {
+            videoEnabled:
+              false,
+          };
+        }
 
-      const latest =
-        await requestJson(
-          `${APIBASEURL}/` +
-            `recording-sessions/` +
-            `${sessionRef.current.sessionId}`
-        );
+        if (
+          !sessionRef.current
+            ?.sessionId ||
+          !streamRef.current
+        ) {
+          throw new Error(
+            "The researcher must choose " +
+              "a video option and click " +
+              "Set up cameras first."
+          );
+        }
 
-      mergeSession(latest);
-
-      if (!latest.allReady) {
-        throw new Error(
-          `Only ${latest.readyCount} ` +
-            `of ${latest.cameraCount} ` +
-            "required cameras are ready."
-        );
-      }
-
-      const started =
-        await postJson(
-          `${APIBASEURL}/` +
-            `recording-sessions/` +
-            `${latest.sessionId}/start`,
-          {
-            questionId,
-          }
-        );
-
-      mergeSession(started);
-
-      await startLocalRecorderAt(
-        started
-      );
-
-      return {
-        videoEnabled: true,
-        session: started,
-      };
-    };
-
-    const stopRecording = async () => {
-      if (cameraCount === 0) {
-        return;
-      }
-
-      const current =
-        sessionRef.current;
-
-      if (!current?.sessionId) {
-        return;
-      }
-
-      try {
-        const stopped =
-          await postJson(
-            `${APIBASEURL}/` +
-              `recording-sessions/` +
-              `${current.sessionId}/stop`
+        const latest =
+          await requestJson(
+            `${APIBASEURL}/recording-sessions/${sessionRef.current.sessionId}`
           );
 
-        mergeSession(stopped);
+        mergeSession(
+          latest
+        );
 
-      } catch (stopError) {
-        setError(stopError.message);
-      }
+        if (
+          !latest.allReady
+        ) {
+          throw new Error(
+            `Only ${latest.readyCount} ` +
+              `of ${latest.cameraCount} ` +
+              "required cameras are ready."
+          );
+        }
 
-      if (
-        recorderRef.current?.state
-        === "recording"
-      ) {
-        recorderRef.current.stop();
-      }
-    };
+        const started =
+          await postJson(
+            `${APIBASEURL}/recording-sessions/${latest.sessionId}/start`,
+            {
+              questionId,
+            }
+          );
 
-    const waitForUpload = async () => {
-      await uploadPromiseRef.current;
-    };
+        mergeSession(
+          started
+        );
+
+        await startLocalRecorderAt(
+          started
+        );
+
+        return {
+          videoEnabled:
+            true,
+          session:
+            started,
+        };
+      };
+
+
+    const stopRecording =
+      async () => {
+        if (
+          cameraCount === 0
+        ) {
+          return;
+        }
+
+        const current =
+          sessionRef.current;
+
+        if (
+          !current?.sessionId
+        ) {
+          return;
+        }
+
+        try {
+          const stopped =
+            await postJson(
+              `${APIBASEURL}/recording-sessions/${current.sessionId}/stop`
+            );
+
+          mergeSession(
+            stopped
+          );
+
+        } catch (
+          stopError
+        ) {
+          setError(
+            stopError.message
+          );
+
+          throw stopError;
+
+        } finally {
+          if (
+            recorderRef.current
+              ?.state ===
+            "recording"
+          ) {
+            recorderRef.current.stop();
+          }
+        }
+      };
+
+
+    const waitForUpload =
+      async () => {
+        if (
+          cameraCount === 0
+        ) {
+          return;
+        }
+
+        /*
+         * First wait for the laptop's
+         * own upload.
+         */
+        await uploadPromiseRef.current;
+
+        const current =
+          sessionRef.current;
+
+        if (
+          !current?.sessionId
+        ) {
+          return;
+        }
+
+        setMessage(
+          "Waiting for all camera " +
+            "videos to finish uploading..."
+        );
+
+        /*
+         * Phones upload independently.
+         * Wait until the backend confirms
+         * that every required camera has
+         * uploaded.
+         */
+        const timeoutMs =
+          90 * 1000;
+
+        const deadline =
+          Date.now() +
+          timeoutMs;
+
+        let latest =
+          current;
+
+        while (
+          Date.now() <
+          deadline
+        ) {
+          latest =
+            await requestJson(
+              `${APIBASEURL}/recording-sessions/${current.sessionId}`
+            );
+
+          mergeSession(
+            latest
+          );
+
+          if (
+            latest.allUploaded ||
+            latest.status ===
+              "completed"
+          ) {
+            setMessage(
+              "All required videos " +
+                "uploaded successfully."
+            );
+
+            setError("");
+
+            return;
+          }
+
+          await sleep(
+            750
+          );
+        }
+
+        const timeoutError =
+          new Error(
+            "The laptop finished uploading, " +
+              "but one or more phone cameras " +
+              "have not finished. Check each " +
+              "phone for an upload error and " +
+              "use Retry upload if shown."
+          );
+
+        setError(
+          timeoutError.message
+        );
+
+        throw timeoutError;
+      };
+
 
     useImperativeHandle(
       ref,
@@ -769,65 +928,84 @@ const VideoRecorder = forwardRef(
       })
     );
 
-    const copyJoinLink = async () => {
-      if (!session?.joinUrl) {
-        return;
-      }
 
-      try {
-        await navigator.clipboard
-          .writeText(
-            session.joinUrl
+    const copyJoinLink =
+      async () => {
+        if (
+          !session?.joinUrl
+        ) {
+          return;
+        }
+
+        try {
+          await navigator.clipboard
+            .writeText(
+              session.joinUrl
+            );
+
+          setMessage(
+            "Phone camera link copied."
           );
 
-        setMessage(
-          "Phone camera link copied."
-        );
+        } catch {
+          window.prompt(
+            "Copy this phone camera link:",
+            session.joinUrl
+          );
+        }
+      };
 
-      } catch {
-        window.prompt(
-          "Copy this phone camera link:",
-          session.joinUrl
-        );
-      }
-    };
 
     const additionalNeeded =
       Math.max(
         0,
-        (session?.cameraCount || 0) - 1
+        (
+          session?.cameraCount ||
+          0
+        ) - 1
       );
 
     const additionalJoined =
       Math.max(
         0,
-        (session?.joinedCount || 0) - 1
+        (
+          session?.joinedCount ||
+          0
+        ) - 1
       );
 
     const additionalReady =
       Math.max(
         0,
-        (session?.readyCount || 0) - 1
+        (
+          session?.readyCount ||
+          0
+        ) - 1
       );
+
 
     return (
       <details
         style={{
           marginTop: 24,
           padding: 16,
-          border: (
-            "2px solid #1976d2"
-          ),
+          border:
+            "2px solid #1976d2",
           borderRadius: 12,
-          background: "#f7fbff",
-          textAlign: "left",
+          background:
+            "#f7fbff",
+          textAlign:
+            "left",
         }}
       >
         <summary
           style={{
-            cursor: "pointer",
-            fontWeight: 800,
-            fontSize: 18,
+            cursor:
+              "pointer",
+            fontWeight:
+              800,
+            fontSize:
+              18,
           }}
         >
           {showChinese
@@ -858,35 +1036,51 @@ const VideoRecorder = forwardRef(
 
         <label
           style={{
-            display: "block",
-            fontWeight: 700,
-            marginBottom: 8,
+            display:
+              "block",
+            fontWeight:
+              700,
+            marginBottom:
+              8,
           }}
         >
           Total cameras
 
           <select
-            value={cameraCount}
+            value={
+              cameraCount
+            }
             onChange={
               changeCameraCount
             }
             disabled={
-              recording || uploading
+              recording ||
+              uploading
             }
             style={{
-              display: "block",
-              marginTop: 6,
-              padding: 8,
-              width: "100%",
+              display:
+                "block",
+              marginTop:
+                6,
+              padding:
+                8,
+              width:
+                "100%",
             }}
           >
             {CAMERA_OPTIONS.map(
               (option) => (
                 <option
-                  key={option.value}
-                  value={option.value}
+                  key={
+                    option.value
+                  }
+                  value={
+                    option.value
+                  }
                 >
-                  {option.label}
+                  {
+                    option.label
+                  }
                 </option>
               )
             )}
@@ -895,15 +1089,19 @@ const VideoRecorder = forwardRef(
 
         <button
           type="button"
-          onClick={setupCameras}
+          onClick={
+            setupCameras
+          }
           disabled={
             settingUp ||
             recording ||
             uploading
           }
           style={{
-            padding: "10px 16px",
-            fontWeight: 700,
+            padding:
+              "10px 16px",
+            fontWeight:
+              700,
           }}
         >
           {settingUp
@@ -914,29 +1112,35 @@ const VideoRecorder = forwardRef(
         {stream && (
           <div
             style={{
-              marginTop: 16,
+              marginTop:
+                16,
             }}
           >
             <p
               style={{
-                fontWeight: 700,
-                marginBottom: 6,
+                fontWeight:
+                  700,
+                marginBottom:
+                  6,
               }}
             >
               Laptop camera preview
             </p>
 
             <video
-              ref={previewRef}
+              ref={
+                previewRef
+              }
               autoPlay
               playsInline
               muted
               style={{
-                width: (
-                  "min(100%, 360px)"
-                ),
-                borderRadius: 10,
-                background: "black",
+                width:
+                  "min(100%, 360px)",
+                borderRadius:
+                  10,
+                background:
+                  "black",
               }}
             />
           </div>
@@ -945,165 +1149,210 @@ const VideoRecorder = forwardRef(
         {session && (
           <div
             style={{
-              marginTop: 16,
+              marginTop:
+                16,
             }}
           >
             <p>
               <strong>
                 Session:
               </strong>{" "}
-              {session.sessionId}
+              {
+                session.sessionId
+              }
             </p>
 
             <p>
               <strong>
                 Laptop:
               </strong>{" "}
-              {session.devices?.find(
-                (device) =>
-                  device.role === "main"
-              )?.ready
-                ? "Ready ✓"
-                : "Not ready"}
+              {
+                session.devices
+                  ?.find(
+                    (device) =>
+                      device.role ===
+                      "main"
+                  )?.ready
+                  ? "Ready ✓"
+                  : "Not ready"
+              }
             </p>
 
-            {additionalNeeded > 0 && (
-              <div>
-                <p>
-                  <strong>
-                    Additional cameras:
-                  </strong>{" "}
-                  {additionalReady} ready
-                  {" "}of{" "}
-                  {additionalNeeded}
-                  {" "}required
-                  {" "}(
-                  {additionalJoined}
-                  {" "}connected)
-                </p>
+            {
+              additionalNeeded >
+                0 && (
+                <div>
+                  <p>
+                    <strong>
+                      Additional cameras:
+                    </strong>{" "}
+                    {
+                      additionalReady
+                    }{" "}
+                    ready of{" "}
+                    {
+                      additionalNeeded
+                    }{" "}
+                    required (
+                    {
+                      additionalJoined
+                    }{" "}
+                    connected)
+                  </p>
 
-                <ol>
-                  <li>
-                    Scan this same QR
-                    code on every phone
-                    or tablet.
-                  </li>
-                  <li>
-                    On each device, tap
-                    Connect camera.
-                  </li>
-                  <li>
-                    Keep every phone page
-                    open during the
-                    response.
-                  </li>
-                </ol>
+                  <ol>
+                    <li>
+                      Scan this same QR
+                      code on every phone
+                      or tablet.
+                    </li>
 
-                {session.qrCodeDataUrl && (
-                  <img
-                    src={
-                      session.qrCodeDataUrl
-                    }
-                    alt={
-                      "QR code for " +
-                      "connecting an " +
-                      "additional camera"
+                    <li>
+                      On each device, tap
+                      Connect camera.
+                    </li>
+
+                    <li>
+                      Keep every phone
+                      page open during
+                      the response.
+                    </li>
+                  </ol>
+
+                  {
+                    session.qrCodeDataUrl &&
+                    (
+                      <img
+                        src={
+                          session.qrCodeDataUrl
+                        }
+                        alt={
+                          "QR code for " +
+                          "connecting an " +
+                          "additional camera"
+                        }
+                        style={{
+                          width:
+                            220,
+                          height:
+                            220,
+                          background:
+                            "white",
+                        }}
+                      />
+                    )
+                  }
+
+                  <div
+                    style={{
+                      overflowWrap:
+                        "anywhere",
+                      marginTop:
+                        8,
+                    }}
+                  >
+                    <a
+                      href={
+                        session.joinUrl
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {
+                        session.joinUrl
+                      }
+                    </a>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={
+                      copyJoinLink
                     }
                     style={{
-                      width: 220,
-                      height: 220,
-                      background: "white",
+                      marginTop:
+                        8,
                     }}
-                  />
-                )}
-
-                <div
-                  style={{
-                    overflowWrap:
-                      "anywhere",
-                    marginTop: 8,
-                  }}
-                >
-                  <a
-                    href={session.joinUrl}
-                    target="_blank"
-                    rel="noreferrer"
                   >
-                    {session.joinUrl}
-                  </a>
+                    Copy phone link
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={copyJoinLink}
-                  style={{
-                    marginTop: 8,
-                  }}
-                >
-                  Copy phone link
-                </button>
-              </div>
-            )}
+              )
+            }
 
             <p
               style={{
-                fontWeight: 800,
+                fontWeight:
+                  800,
               }}
             >
-              {session.allReady
-                ? (
-                    "All required cameras " +
-                    "are ready. The " +
-                    "participant may start " +
-                    "the answer."
-                  )
-                : (
-                    "Waiting for every " +
-                    "required camera to " +
-                    "become ready."
-                  )}
+              {
+                session.allReady
+                  ? (
+                      "All required cameras " +
+                      "are ready. The " +
+                      "participant may start " +
+                      "the answer."
+                    )
+                  : (
+                      "Waiting for every " +
+                      "required camera to " +
+                      "become ready."
+                    )
+              }
             </p>
 
             <p>
               <strong>
                 Status:
               </strong>{" "}
-              {session.status}
+              {
+                session.status
+              }
 
-              {recording
-                ? " — recording"
-                : ""}
+              {
+                recording
+                  ? " — recording"
+                  : ""
+              }
 
-              {uploading
-                ? (
-                    " — uploading " +
-                    "laptop video"
-                  )
-                : ""}
+              {
+                uploading
+                  ? (
+                      " — uploading " +
+                      "laptop video"
+                    )
+                  : ""
+              }
             </p>
 
-            {session.status ===
-              "completed" && (
-              <p
-                style={{
-                  color: "green",
-                  fontWeight: 800,
-                }}
-              >
-                All required videos
-                uploaded successfully.
-                Another attempt can be
-                recorded without
-                reconnecting the phones.
-              </p>
-            )}
+            {
+              session.status ===
+                "completed" && (
+                <p
+                  style={{
+                    color:
+                      "green",
+                    fontWeight:
+                      800,
+                  }}
+                >
+                  All required videos
+                  uploaded successfully.
+                  Another attempt can be
+                  recorded without
+                  reconnecting the phones.
+                </p>
+              )
+            }
           </div>
         )}
 
         {message && (
           <p
             style={{
-              color: "#0d47a1",
+              color:
+                "#0d47a1",
             }}
           >
             {message}
@@ -1113,8 +1362,10 @@ const VideoRecorder = forwardRef(
         {error && (
           <p
             style={{
-              color: "#b00020",
-              fontWeight: 700,
+              color:
+                "#b00020",
+              fontWeight:
+                700,
             }}
           >
             {error}
@@ -1127,7 +1378,9 @@ const VideoRecorder = forwardRef(
             onClick={
               retryMainUpload
             }
-            disabled={uploading}
+            disabled={
+              uploading
+            }
           >
             Retry laptop video upload
           </button>
@@ -1138,8 +1391,8 @@ const VideoRecorder = forwardRef(
 );
 
 
-VideoRecorder.displayName = (
-  "VideoRecorder"
-);
+VideoRecorder.displayName =
+  "VideoRecorder";
+
 
 export default VideoRecorder;
