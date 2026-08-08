@@ -6,6 +6,8 @@ import "./StoryTest.css";
 import VideoRecorder from "../Components/VideoRecorder";
 import VideoUpload from "../Components/VideoUpload";
 
+const MAX_RECORDING_ATTEMPTS = 2;
+
 const Retell = ({
   imageLinks,
   showChinese,
@@ -13,46 +15,56 @@ const Retell = ({
   uploadToLambda,
   type,
   disableOption,
+  beforeUnload,
+  onStartRecording,
 }) => {
   const [recording, setRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
   const [timeLeft, setTimeLeft] = useState(30);
-  const [maxTime, setMaxTime] = useState(3);
-  const [isPlayingPrompt, setIsPlayingPrompt] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showExceededMessage, setShowExceededMessage] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
+  const [recordingAttempts, setRecordingAttempts] = useState(0);
 
-  const timerRef = useRef(null);
   const countdownRef = useRef(null);
-  const audioRef = useRef(null);
+  const promptKey = imageLinks.map((item) => item.link || item).join("|");
 
   useEffect(() => {
+    setAudioBlob(null);
+    setRecordedAudioUrl("");
+    setHasRecorded(false);
+    setRecordingAttempts(0);
     setTimeLeft(30);
-    setMaxTime(3);
-  }, []);
+  }, [promptKey]);
 
   useEffect(() => {
     return () => {
-      if (audioRef.current instanceof Audio) {
-        audioRef.current.pause();
-      }
-      clearTimeout(timerRef.current);
       clearTimeout(countdownRef.current);
     };
   }, []);
 
   const onStop = async (recorded) => {
-    setAudioUrl(recorded.blobURL);
+    if (!recorded || !recorded.blob) {
+      return;
+    }
+
     setAudioBlob(recorded.blob);
+    setRecordedAudioUrl(recorded.blobURL || "");
     setRecording(false);
     setHasRecorded(true);
+    setRecordingAttempts((prev) =>
+      Math.min(prev + 1, MAX_RECORDING_ATTEMPTS)
+    );
   };
 
   const startRecording = () => {
-    if (disableOption) return;
+    if (disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS) return;
     setShowExceededMessage(false);
     setHasRecorded(false);
+    setAudioBlob(null);
+    onStartRecording?.(); // auto pause the audio
+    setRecordedAudioUrl("");
     setRecording(true);
     setTimeLeft(30);
 
@@ -77,15 +89,15 @@ const Retell = ({
 
   const submitRecording = async () => {
     if (!audioBlob) return;
+    setSubmitting(true);
     try {
-      await uploadToLambda({
-        type,
-        recordAudioBlob: audioBlob,
-        recordAudioUrl: audioUrl,
-      });
-      alert("Audio submitted.");
+      await uploadToLambda(audioBlob, type);
+      beforeUnload();
     } catch (e) {
+      console.error("Failed to submit retell audio:", e);
       alert("Failed to submit audio.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -103,34 +115,55 @@ const Retell = ({
       </div>
 
       <div className="container">
-        {imageLinks.map((link, idx) => (
-          <div key={idx} className="itemContainer">
-            <p>{idx + 1}.</p>
-            <img src={link} alt="story scene" className="storyItem" />
-          </div>
-        ))}
+        {imageLinks.map((item, idx) => {
+          const link = item?.link || item;
+          return (
+            <div key={item?.id || link || idx} className="itemContainer">
+              <p>{idx + 1}.</p>
+              <img src={link} alt="story scene" className="storyItem" />
+            </div>
+          );
+        })}
       </div>
 
       {recording ? (
         <div className="recordingActionContainer" onClick={stopRecording}>
-          <p className="actionText">
-            {showChinese ? "点击停止录音" : "Tap to stop recording"}
-          </p>
+          <div className="recordingContainer stopRecording">
+            <p className="actionText">
+              {showChinese ? "点击停止录音" : "Tap to stop recording"}
+            </p>
+          </div>
         </div>
       ) : (
         <div
           className={
-            disableOption
+            disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS
               ? "recordingContainer disabled"
               : "recordingContainer enabled"
           }
-          onClick={disableOption ? undefined : startRecording}
+          onClick={
+            disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS
+              ? undefined
+              : startRecording
+          }
         >
           <p className="actionText">
-            {showChinese ? "点击开始录音" : "Tap to start recording"}
+            {recordingAttempts >= MAX_RECORDING_ATTEMPTS
+              ? showChinese
+                ? "已达到两次录音上限"
+                : "Two recording attempts used"
+              : showChinese
+                ? "点击开始录音"
+                : "Tap to start recording"}
           </p>
         </div>
       )}
+
+      <p className="recordingAttemptText">
+        {showChinese
+          ? `录音次数：${recordingAttempts}/${MAX_RECORDING_ATTEMPTS}`
+          : `Recording attempts: ${recordingAttempts}/${MAX_RECORDING_ATTEMPTS}`}
+      </p>
 
       {showExceededMessage && (
         <p className="actionText">
@@ -147,14 +180,23 @@ const Retell = ({
       </p>
 
       {hasRecorded && (
-        <div className="submitButtonContainer">
-          <BlueButton
-            showChinese={showChinese}
-            textEnglish="Submit recording"
-            textChinese="提交录音"
-            onClick={submitRecording}
-            disabled={!audioBlob}
-          />
+        <div className="retellReviewContainer">
+          {recordedAudioUrl && (
+            <audio
+              controls
+              src={recordedAudioUrl}
+              className="retellAudioPlayer"
+            />
+          )}
+          <div className="submitButtonContainer">
+            <BlueButton
+              showChinese={showChinese}
+              textEnglish={submitting ? "Submitting..." : "Submit recording"}
+              textChinese="提交录音"
+              onClick={submitRecording}
+              disabled={!audioBlob || submitting}
+            />
+          </div>
         </div>
       )}
 

@@ -16,30 +16,58 @@ import Confirmation from "../Components/Confirmation";
 import Instructions from "./Instructions";
 import AudioPermission from "../Tests/AudioPermission";
 import { APIBASEURL } from "../config";
+import { isChineseLanguage } from "../utils/language";
 import { buildRecordingBin } from "../utils/recordingBins";
 
 let questionAudio;
 let audioLink;
 
-const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/media-upload`;
 
-const narrationInstruction =
+const narrationInstructionEnglish =
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
+const narrationInstructionChinese =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/comprehension/2-dog-story/025%2BMandarin.m4a";
 
-const retellingLinks = [
+const retellingLinksEnglish = [
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_1.m4a",
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
 ];
+const retellingLinksChinese = [
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+];
+
+const questionInstructionEnglish =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/question_instructions.m4a";
+const questionInstructionChinese =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/009%2Bmandarin.m4a";
+
+const isValidAudioLink = (link) => {
+  if (!link || typeof link !== "string") {
+    return false;
+  }
+
+  try {
+    const url = new URL(link.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
 
 const normalizeStoryData = (rawData) => {
-  if (!Array.isArray(rawData) || rawData.length === 0) {
+  const rows = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
+
+  if (rows.length === 0) {
     return [];
   }
 
-  // Backward-compatible: payload already grouped by story.
-  if (Array.isArray(rawData[0]?.questions)) {
-    return rawData.map((story, index) => ({
+  // Story-detail payload: narration and questions are separate story fields.
+  if (rows.some((row) => Array.isArray(row?.questions))) {
+    return rows.map((story, index) => ({
       story_id: story.story_id ?? index + 1,
       questions: Array.isArray(story.questions) ? story.questions : [],
       image_links: Array.isArray(story.image_links) ? story.image_links : [],
@@ -50,7 +78,7 @@ const normalizeStoryData = (rawData) => {
   }
 
   // New payload shape: flat list of questions with story_id.
-  const grouped = rawData.reduce((acc, row) => {
+  const grouped = rows.reduce((acc, row) => {
     const storyId = row.story_id ?? 1;
     if (!acc[storyId]) {
       acc[storyId] = {
@@ -83,8 +111,12 @@ const normalizeStoryData = (rawData) => {
           }
         });
 
-        if (question.narration_audio) {
-          narrationSet.add(question.narration_audio);
+        if (question.narration_audios) {
+          question.narration_audios.forEach((audio) => {
+            if (audio) {
+              narrationSet.add(audio);
+            }
+          });
         }
       });
 
@@ -99,6 +131,15 @@ const normalizeStoryData = (rawData) => {
 };
 
 const StoryTest = ({ language }) => {
+  const isChinese = isChineseLanguage(language);
+  const narrationInstruction = isChinese
+    ? narrationInstructionChinese
+    : narrationInstructionEnglish;
+  const retellingLinks = isChinese ? retellingLinksChinese : retellingLinksEnglish;
+  const questionInstruction = isChinese
+    ? questionInstructionChinese
+    : questionInstructionEnglish;
+
   // currentStory uses 1-based indexing
   const [currentStory, setCurrentStory] = useState(1);
   // stage 0: narration instr, 1: narration, 2: retell, 3: question instr, 4: questions
@@ -121,6 +162,8 @@ const StoryTest = ({ language }) => {
   const [completed, setCompleted] = useState(false);
   const [showChinese, setShowChinese] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioPaused, setAudioPaused] = useState(false);
+  const [audioAutoPlay, setAudioAutoPlay] = useState(true);
   const [countDown, setCountDown] = useState(3);
   const [disableOption, setDisableOption] = useState(true);
   const [uploadsInProgress, setUploadsInProgress] = useState(0);
@@ -130,6 +173,8 @@ const StoryTest = ({ language }) => {
   const [currentStage, setCurrentStage] = useState(0);
 
   const timeoutRef = useRef(null);
+  const audioRef = useRef(null);
+  const audioLinkRef = useRef("");
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -150,28 +195,80 @@ const StoryTest = ({ language }) => {
       timeoutRef.current = setTimeout(() => {
         setCountDown((prev) => prev - 1);
       }, 1000);
-    } else if (!audioPlaying) {
+    } else if (audioAutoPlay && !audioPlaying && !audioPaused) {
       playAudio();
     }
 
     return () => clearTimeout(timeoutRef.current);
-  }, [countDown, showLoading, showAudioPermission, audioPlaying]);
+  }, [
+    countDown,
+    showLoading,
+    showAudioPermission,
+    audioPlaying,
+    audioPaused,
+    audioAutoPlay,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // fetch story data
   useEffect(() => {
     async function fetchStoryData() {
-      const response = await fetch(
-        `${APIBASEURL}/questions?language=${encodeURIComponent(
-          language
-        )}&type=story`,
-        {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        }
-      );
+      const apiLanguage = isChineseLanguage(language) ? "CN" : "EN";
+      const storyListUrl = `${APIBASEURL}/questions?language=${encodeURIComponent(
+        apiLanguage
+      )}&type=story`;
+      const response = await fetch(storyListUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch story list: ${response.status}`);
+      }
+
       console.log("getting story data");
-      const rawData = await response.json();
-      const normalizedStories = normalizeStoryData(rawData);
+      const storyList = await response.json();
+      const storySummaries = Array.isArray(storyList)
+        ? storyList
+        : storyList
+        ? [storyList]
+        : [];
+      const languageStories = storySummaries.filter(
+        (story) =>
+          !story.language ||
+          String(story.language).toUpperCase() === apiLanguage
+      );
+
+      const storyDetails = await Promise.all(
+        languageStories.map(async (story) => {
+          if (Array.isArray(story.questions)) {
+            return story;
+          }
+
+          const detailUrl = `${storyListUrl}&story_id=${encodeURIComponent(
+            story.story_id
+          )}`;
+          const detailResponse = await fetch(detailUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          });
+          if (!detailResponse.ok) {
+            throw new Error(
+              `Failed to fetch story ${story.story_id}: ${detailResponse.status}`
+            );
+          }
+          return detailResponse.json();
+        })
+      );
+
+      const normalizedStories = normalizeStoryData(storyDetails);
       setStories(normalizedStories);
       console.log("Fetched story data:", normalizedStories);
 
@@ -184,7 +281,7 @@ const StoryTest = ({ language }) => {
       setQuestions(normalizedStories[0].questions || []);
       setImageLinks(normalizedStories[0].image_links || []);
       setNarrationLinks(normalizedStories[0].narration_audios || []);
-      audioLink = narrationInstruction;
+      audioLinkRef.current = narrationInstruction;
       setShowLoading(false);
 
       // compute total stages
@@ -197,7 +294,10 @@ const StoryTest = ({ language }) => {
       setTotalStages(total);
     }
 
-    fetchStoryData();
+    fetchStoryData().catch((error) => {
+      console.error("Failed to load story data:", error);
+      setShowLoading(false);
+    });
   }, [language]);
 
   const recordAudioUrl = (questionId, s3Url, type) => {
@@ -234,47 +334,72 @@ const StoryTest = ({ language }) => {
     }
   };
 
-  const uploadToLambda = async (recordedBlob, type) => {
+  const uploadToLambda = async (recordedBlob, type, explicitQuestionId) => {
     setUploadsInProgress((prev) => prev + 1);
 
-    const base64Data = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(recordedBlob.blob);
-    });
+    try {
+      const blob = recordedBlob?.blob || recordedBlob;
+      if (!blob) {
+        throw new Error("No audio blob was captured.");
+      }
 
-    const questionId = subStageRef.current;
-    console.log("current story id:", currentStory);
-    console.log("current question id:", questionId);
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
 
-    const requestBody = {
-      fileType: "audio/webm",
-      audioData: base64Data,
-      userId: localStorage.getItem("username"),
-      questionId,
-      bucketName: buildRecordingBin({
-        showChinese,
-        task: type === "retell" ? "story-retell" : "story-question",
-        source: "system-recording",
-        storyId: currentStory,
+      const questionId = explicitQuestionId ?? subStageRef.current;
+      console.log("current story id:", currentStory);
+      console.log("current question id:", questionId);
+
+      const participantId = localStorage.getItem("username");
+
+      if (!participantId) {
+        throw new Error("No participant username found.");
+      }
+
+      const requestBody = {
+        mediaData: base64Data,
+        filetype: blob.type || "audio/webm",
+        participantId,
         questionId,
-      }),
-    };
+        testType: type === "retell" ? "story-retell" : "story-question",
+        language: isChineseLanguage(language) ? "CN" : "EN",
+      };
 
-    const response = await fetch(LAMBDAAPIENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    });
+      const response = await fetch(LAMBDAAPIENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-    const data = await response.json();
-    if (data.url) {
-      recordAudioUrl(questionId, data.url, type);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.details ||
+            data.error ||
+            `Upload failed with status ${response.status}`
+        );
+      }
+
+      console.log("Story audio uploaded:", data);
+
+      if (data.s3_key) {
+        recordAudioUrl(questionId, data.s3_key, type);
+      }
+
+      return data.s3_key || null;
+    } catch (error) {
+      console.error("Failed to upload story audio:", error);
+      return null;
+    } finally {
+      setUploadsInProgress((prev) => Math.max(prev - 1, 0));
     }
-
-    setUploadsInProgress((prev) => prev - 1);
-    return data.url;
   };
 
   const submitAnswers = async () => {
@@ -284,7 +409,7 @@ const StoryTest = ({ language }) => {
     const requestBody = {
       participantId: username,
       userAns: null,
-      isEN: language !== "CN",
+      isEN: !isChineseLanguage(language),
       isAudioTest: false,
       storySubmissionList: audioUrls,
       retellSubmissionList: retellUrls,
@@ -308,35 +433,96 @@ const StoryTest = ({ language }) => {
   };
 
   const playAudio = () => {
-    console.log("playing", audioLink);
-    if (!audioLink) {
-      console.log("audio link null");
+    const currentAudioLink = audioLinkRef.current?.trim();
+    console.log("playing", currentAudioLink);
+    if (!isValidAudioLink(currentAudioLink)) {
+      console.log("audio link invalid");
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+        audioRef.current = null;
+      }
+      setAudioPlaying(false);
+      setAudioPaused(true);
+      setAudioAutoPlay(false);
       setDisableOption(false);
       return;
     }
 
-    questionAudio = new Audio(audioLink);
-    questionAudio.addEventListener("play", () => setAudioPlaying(true));
-    questionAudio.addEventListener("ended", () => {
+    if (audioRef.current && audioRef.current.src === currentAudioLink) {
+      audioRef.current.play().catch((error) => {
+        console.error("Error resuming audio:", error);
+        setDisableOption(false);
+      });
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    const nextAudio = new Audio(currentAudioLink);
+    audioRef.current = nextAudio;
+    nextAudio.addEventListener("play", () => {
+      setAudioPaused(false);
+      setAudioPlaying(true);
+    });
+    nextAudio.addEventListener("pause", () => setAudioPlaying(false));
+    nextAudio.addEventListener("error", () => {
+      console.error("Error loading audio:", currentAudioLink);
+      if (audioRef.current === nextAudio) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+        audioRef.current = null;
+      }
       setAudioPlaying(false);
+      setAudioPaused(true);
+      setAudioAutoPlay(false);
+      setDisableOption(false);
+    });
+    nextAudio.addEventListener("ended", () => {
+      setAudioPlaying(false);
+      setAudioPaused(false);
+      setAudioAutoPlay(false);
+
       if (disableOption) {
         setDisableOption(false);
       }
     });
 
-    questionAudio
+    nextAudio
       .play()
       .catch((error) => {
-        alert("error in playing question.", error);
+        console.error("Error playing audio:", error);
+        alert("Error playing audio. You can continue to the next step.");
+        setAudioPaused(false);
+        setAudioAutoPlay(false);
         setDisableOption(false);
       });
   };
 
   const stopAudio = () => {
     try {
-      if (questionAudio) {
-        questionAudio.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
+      setAudioPaused(false);
+      setAudioPlaying(false);
+    } catch {
+      console.log("couldn't pause audio");
+    }
+  };
+
+  const pauseAudio = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setAudioPaused(true);
+      setAudioAutoPlay(false);
       setAudioPlaying(false);
     } catch {
       console.log("couldn't pause audio");
@@ -345,13 +531,13 @@ const StoryTest = ({ language }) => {
 
   const updateInstructionLink = (stageValue, subStageValue) => {
     if (stageValue === 1) {
-      audioLink = narrationLinks[subStageValue - 1] || "";
+      audioLinkRef.current = narrationLinks[subStageValue - 1] || "";
     } else if (stageValue === 2) {
-      audioLink = retellingLinks[subStageValue - 1];
+      audioLinkRef.current = retellingLinks[subStageValue - 1] || "";
     } else if (stageValue === 4) {
-      audioLink = questions[subStageValue - 1]?.question_audio || "";
+      audioLinkRef.current = questions[subStageValue - 1]?.question_audio || "";
     } else {
-      audioLink = "";
+      audioLinkRef.current = "";
     }
   };
 
@@ -363,6 +549,8 @@ const StoryTest = ({ language }) => {
 
     stopAudio();
     setCountDown(3);
+    setAudioPaused(false);
+    setAudioAutoPlay(true);
     setDisableOption(true);
     setCurrentStage((prev) => prev + 1);
 
@@ -382,8 +570,7 @@ const StoryTest = ({ language }) => {
     } else if (stage === 2) {
       subStageRef.current = subStage;
       if (subStage === 3) {
-        audioLink =
-          "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/question_instructions.m4a";
+        audioLinkRef.current = questionInstruction;
         setStage(3);
         setSubStage(1);
       } else {
@@ -396,7 +583,7 @@ const StoryTest = ({ language }) => {
     } else {
       subStageRef.current = subStage;
       if (subStage === questions.length) {
-        audioLink = narrationInstruction;
+        audioLinkRef.current = narrationInstruction;
         setStage(0);
         setSubStage(1);
         if (currentStory === stories.length) {
@@ -496,6 +683,8 @@ const StoryTest = ({ language }) => {
           chineseText="你确定要开始英语故事测试吗"
           confirmAction={() => {
             setAudioPlaying(false);
+            setAudioPaused(false);
+            setAudioAutoPlay(true);
             setCountDown(3);
             setDisableOption(true);
             setCurrentStage((prev) => prev + 1);
@@ -521,10 +710,10 @@ const StoryTest = ({ language }) => {
       <div className="indicator">
         {audioPlaying ? (
           <div>
-            <IconButton aria-label="pause" disabled>
+            <IconButton aria-label="pause" onClick={pauseAudio}>
               <PauseCircleIcon
                 color="primary"
-                className="pauseButton disabled"
+                className="pauseButton"
               />
             </IconButton>
             <p className="actionText">
@@ -578,6 +767,7 @@ const StoryTest = ({ language }) => {
             stopAudio();
             advanceSubStage();
           }}
+          onStartRecording={pauseAudio}
           uploadToLambda={uploadToLambda}
           type="retell"
         />
@@ -599,8 +789,10 @@ const StoryTest = ({ language }) => {
           }}
           disableOption={disableOption}
           question={questions[subStage - 1]}
+          displayNumber={subStage}
           uploadToLambda={uploadToLambda}
           type="question"
+          onStartRecording={pauseAudio}
         />
       ) : (
         <div>page does not exist</div>
