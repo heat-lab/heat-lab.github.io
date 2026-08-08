@@ -7,6 +7,9 @@ import Confirmation from "../Components/Confirmation";
 import "./TestSelection.css";
 import { APIBASEURL } from "../config";
 
+const completionValue = (user, currentName, legacyName) =>
+  Boolean(user?.[currentName] ?? user?.[legacyName] ?? false);
+
 const LanguageSelection = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,12 +66,24 @@ const LanguageSelection = () => {
         const user = data[0];
 
         // IMPORTANT: keep these names in sync with backend fields
-        setEnglishMatchingCompleted(!!user.completedmatchingen);
-        setChineseMatchingCompleted(!!user.completedmatchingcn);
-        setEnglishRepetitionCompleted(!!user.completedrepetitionen);
-        setChineseRepetitionCompleted(!!user.completedrepetitioncn);
-        setEnglishStoryCompleted(!!user.completedstoryen);
-        setChineseStoryCompleted(!!user.completedstorycn);
+        setEnglishMatchingCompleted(
+          completionValue(user, "completed_matching_en", "completedmatchingen")
+        );
+        setChineseMatchingCompleted(
+          completionValue(user, "completed_matching_cn", "completedmatchingcn")
+        );
+        setEnglishRepetitionCompleted(
+          completionValue(user, "completed_repetition_en", "completedrepetitionen")
+        );
+        setChineseRepetitionCompleted(
+          completionValue(user, "completed_repetition_cn", "completedrepetitioncn")
+        );
+        setEnglishStoryCompleted(
+          completionValue(user, "completed_story_en", "completedstoryen")
+        );
+        setChineseStoryCompleted(
+          completionValue(user, "completed_story_cn", "completedstorycn")
+        );
       } catch (err) {
         console.error("Error fetching user data", err);
       }
