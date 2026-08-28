@@ -4,7 +4,6 @@ import BlueButton from "../Components/BlueButton";
 import TranslationButton from "../Components/TranslationButton";
 import "./StoryTest.css";
 import VideoRecorder from "../Components/VideoRecorder";
-import VideoUpload from "../Components/VideoUpload";
 
 const MAX_RECORDING_ATTEMPTS = 2;
 
@@ -17,6 +16,9 @@ const Retell = ({
   disableOption,
   beforeUnload,
   onStartRecording,
+  participantId,
+  questionId,
+  testLanguage,
 }) => {
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -26,8 +28,10 @@ const Retell = ({
   const [showExceededMessage, setShowExceededMessage] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
   const [recordingAttempts, setRecordingAttempts] = useState(0);
+  const [videoError, setVideoError] = useState("");
 
   const countdownRef = useRef(null);
+  const videoRecorderRef = useRef(null);
   const promptKey = imageLinks.map((item) => item.link || item).join("|");
 
   useEffect(() => {
@@ -58,13 +62,23 @@ const Retell = ({
     );
   };
 
-  const startRecording = () => {
+  const startRecording = async () => {
     if (disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS) return;
     setShowExceededMessage(false);
     setHasRecorded(false);
     setAudioBlob(null);
-    onStartRecording?.(); // auto pause the audio
     setRecordedAudioUrl("");
+    setVideoError("");
+
+    try {
+      await videoRecorderRef.current?.startRecording();
+    } catch (error) {
+      setVideoError(error.message);
+      alert(`Video is not ready: ${error.message}`);
+      return;
+    }
+
+    onStartRecording?.(); // auto pause the audio
     setRecording(true);
     setTimeLeft(30);
 
@@ -75,6 +89,9 @@ const Retell = ({
           clearInterval(countdownRef.current);
           setShowExceededMessage(true);
           setRecording(false);
+          videoRecorderRef.current?.stopRecording().catch((error) => {
+            setVideoError(error.message);
+          });
           return 0;
         }
         return prev - 1;
@@ -85,6 +102,9 @@ const Retell = ({
   const stopRecording = () => {
     setRecording(false);
     clearInterval(countdownRef.current);
+    videoRecorderRef.current?.stopRecording().catch((error) => {
+      setVideoError(error.message);
+    });
   };
 
   const submitRecording = async () => {
@@ -92,6 +112,7 @@ const Retell = ({
     setSubmitting(true);
     try {
       await uploadToLambda(audioBlob, type);
+      await videoRecorderRef.current?.waitForUpload();
       beforeUnload();
     } catch (e) {
       console.error("Failed to submit retell audio:", e);
@@ -202,9 +223,19 @@ const Retell = ({
 
       <div style={{ marginTop: 32 }}>
         <h2>{showChinese ? "视频回答选项" : "Video response options"}</h2>
-        <VideoRecorder language={showChinese ? "CN" : "EN"} task="story-retell" />
-        <VideoUpload language={showChinese ? "CN" : "EN"} task="story-retell" />
+        <VideoRecorder
+          ref={videoRecorderRef}
+          participantId={participantId}
+          questionId={questionId}
+          testType="story-retell"
+          language={testLanguage}
+          showChinese={showChinese}
+        />
       </div>
+
+      {videoError && (
+        <p style={{ color: "#b00020", fontWeight: 700 }}>{videoError}</p>
+      )}
 
       <div style={{ marginTop: 16 }}>
         <TranslationButton

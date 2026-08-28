@@ -767,6 +767,7 @@ const StoryTest = ({ language }) => {
         <Retell
           imageLinks={getRetellLinks()}
           showChinese={showChinese}
+          setShowChinese={setShowChinese}
           disableOption={disableOption}
           beforeUnload={() => {
             stopAudio();
@@ -775,6 +776,9 @@ const StoryTest = ({ language }) => {
           onStartRecording={pauseAudio}
           uploadToLambda={uploadToLambda}
           type="retell"
+          participantId={localStorage.getItem("username") || ""}
+          questionId={`story-${currentStory}-retell-${subStage}`}
+          testLanguage={language}
         />
       ) : stage === 3 ? (
         <Instructions
