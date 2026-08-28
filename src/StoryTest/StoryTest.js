@@ -22,7 +22,7 @@ import { buildRecordingBin } from "../utils/recordingBins";
 let questionAudio;
 let audioLink;
 
-const LAMBDAAPIENDPOINT = `${APIBASEURL}/media-upload`;
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
 const narrationInstructionEnglish =
   "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
@@ -361,12 +361,17 @@ const StoryTest = ({ language }) => {
       }
 
       const requestBody = {
-        mediaData: base64Data,
-        filetype: blob.type || "audio/webm",
-        participantId,
+        fileType: blob.type || "audio/webm",
+        audioData: base64Data,
+        userId: participantId,
         questionId,
-        testType: type === "retell" ? "story-retell" : "story-question",
-        language: isChineseLanguage(language) ? "CN" : "EN",
+        bucketName: buildRecordingBin({
+          language,
+          task: type === "retell" ? "story-retell" : "story-question",
+          source: "system-recording",
+          storyId: currentStory,
+          questionId,
+        }),
       };
 
       const response = await fetch(LAMBDAAPIENDPOINT, {
@@ -387,13 +392,13 @@ const StoryTest = ({ language }) => {
         );
       }
 
-      console.log("Story audio uploaded:", data);
-
-      if (data.s3_key) {
-        recordAudioUrl(questionId, data.s3_key, type);
+      if (!data.url) {
+        throw new Error("The backend did not return an audio URL.");
       }
 
-      return data.s3_key || null;
+      recordAudioUrl(questionId, data.url, type);
+
+      return data.url;
     } catch (error) {
       console.error("Failed to upload story audio:", error);
       return null;
