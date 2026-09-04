@@ -1,4 +1,4 @@
-
+import React, { useEffect, useRef, useState } from "react";
 import PauseCircleIcon from "@mui/icons-material/PauseCircle";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import IconButton from "@mui/material/IconButton";
@@ -28,13 +28,6 @@ const normalizeLanguage = (question) => {
     return "EN";
   }
 
-  /*
-   * The repetition questions currently come
-   * from separate English and Chinese tables,
-   * so they may not include a language field.
-   * The app's HashRouter route is therefore the
-   * reliable fallback.
-   */
   const currentRoute =
     `${window.location.pathname}` + `${window.location.hash}`;
 
@@ -59,51 +52,27 @@ const Repetition = ({
   }`;
 
   const [audioPlaying, setAudioPlaying] = useState(false);
-
   const [finishedListening, setFinishedListening] = useState(false);
-
   const [proceedEnabled, setProceedEnabled] = useState(false);
-
   const [recordingTimer, setRecordingTimer] = useState(30);
-
-  /*
-   * On the first real test question, pause
-   * before playing the prompt so the researcher
-   * has time to choose cameras and connect phones.
-   * Practice passes enableVideo={false}, so its
-   * existing automatic countdown is unchanged.
-   */
   const [waitingForCameraSetup, setWaitingForCameraSetup] =
     useState(enableVideo);
-
   const [countDown, setCountDown] = useState(enableVideo ? null : 3);
-
   const [recording, setRecording] = useState(false);
-
   const [timedOut, setTimedOut] = useState(false);
-
   const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
-
   const [finalizing, setFinalizing] = useState(false);
-
   const [videoError, setVideoError] = useState("");
 
   const micRef = useRef(null);
   const videoRecorderRef = useRef(null);
-
   const questionIdRef = useRef(curQuestion?.question_id);
-
   const timeoutRef = useRef(null);
   const timerId = useRef(null);
-
   const pendingAudioBlobRef = useRef(null);
-
   const audioStopResolveRef = useRef(null);
-
   const audioStopPromiseRef = useRef(Promise.resolve(null));
-
   const videoStopPromiseRef = useRef(Promise.resolve(null));
-
   const lastVideoStopErrorRef = useRef(null);
 
   useEffect(() => {
@@ -113,7 +82,6 @@ const Repetition = ({
   useEffect(
     () => () => {
       clearTimeout(timeoutRef.current);
-
       clearTimeout(timerId.current);
 
       if (questionAudio instanceof Audio) {
@@ -146,11 +114,6 @@ const Repetition = ({
           error.message || "The video recording could not be stopped.",
         );
 
-        /*
-         * Resolve with the error instead of leaving
-         * a rejected promise that could become an
-         * unhandled browser rejection.
-         */
         return error;
       }
     })();
@@ -173,7 +136,6 @@ const Repetition = ({
       createAudioStopPromise();
 
       videoStopPromiseRef.current = Promise.resolve(null);
-
       lastVideoStopErrorRef.current = null;
 
       setRecording(true);
@@ -187,7 +149,6 @@ const Repetition = ({
       const message = error.message || "The cameras are not ready.";
 
       setVideoError(message);
-
       alert("Video is not ready: " + message);
 
       return false;
@@ -197,7 +158,6 @@ const Repetition = ({
   const onStop = (recordedBlob) => {
     if (!recordedBlob?.blob) {
       audioStopResolveRef.current?.(null);
-
       audioStopResolveRef.current = null;
 
       setVideoError(
@@ -219,7 +179,6 @@ const Repetition = ({
     recordAudioBlob(questionIdRef.current, recordedBlob);
 
     audioStopResolveRef.current?.(recordedBlob);
-
     audioStopResolveRef.current = null;
   };
 
@@ -261,6 +220,7 @@ const Repetition = ({
       console.error("Could not play repetition prompt:", error);
 
       setAudioPlaying(false);
+
       setVideoError(
         showChinese
           ? "无法播放题目音频。请重试。"
@@ -310,11 +270,8 @@ const Repetition = ({
     setVideoError("");
 
     pendingAudioBlobRef.current = null;
-
     audioStopPromiseRef.current = Promise.resolve(null);
-
     videoStopPromiseRef.current = Promise.resolve(null);
-
     lastVideoStopErrorRef.current = null;
   };
 
@@ -343,10 +300,6 @@ const Repetition = ({
         stopCameraRecording();
         setRecording(false);
       } else if (lastVideoStopErrorRef.current) {
-        /* Allow the participant to retry a
-         * failed stop request by pressing Next
-         * again after checking the cameras.
-         */
         stopCameraRecording();
       }
 
@@ -374,7 +327,9 @@ const Repetition = ({
     } catch (error) {
       console.error("Could not finish repetition recording:", error);
 
-      setVideoError(error.message || "The recording could not be completed.");
+      setVideoError(
+        error.message || "The recording could not be completed.",
+      );
     } finally {
       setFinalizing(false);
     }
@@ -414,11 +369,10 @@ const Repetition = ({
 
           <GreenButton
             showChinese={showChinese}
-            textEnglish={"Camera setup finished — begin"}
+            textEnglish="Camera setup finished — begin"
             textChinese="摄像头设置完成—开始"
             onClick={() => {
               setWaitingForCameraSetup(false);
-
               setCountDown(3);
             }}
           />
@@ -456,7 +410,7 @@ const Repetition = ({
             >
               <PauseCircleIcon
                 color="primary"
-                className={"pauseButton disabled"}
+                className="pauseButton disabled"
               />
             </IconButton>
 
@@ -484,7 +438,7 @@ const Repetition = ({
               {finishedListening ? (
                 <PauseCircleIcon
                   color="primary"
-                  className={"pauseButton disabled"}
+                  className="pauseButton disabled"
                 />
               ) : (
                 <PlayCircleIcon
@@ -500,19 +454,22 @@ const Repetition = ({
 
             {waitingForCameraSetup ? (
               <p className="actionText">
-                {showChinese ? "等待摄像头设置" : "Waiting for camera setup"}
+                {showChinese
+                  ? "等待摄像头设置"
+                  : "Waiting for camera setup"}
               </p>
             ) : timedOut ? (
               <p className="actionText">
                 {showChinese
                   ? "录音时间已超过最大限制，" + "请继续进行。"
-                  : "Recording reached the maximum " + "time. Please continue."}
+                  : "Recording reached the maximum " +
+                    "time. Please continue."}
               </p>
             ) : countDown > 0 ? (
               <p className="actionText">
                 {showChinese
                   ? `${countDown} 秒内播放音频`
-                  : `Audio playing in ` + `${countDown} second(s)`}
+                  : `Audio playing in ${countDown} second(s)`}
               </p>
             ) : finishedListening ? (
               <div>
@@ -522,10 +479,10 @@ const Repetition = ({
                     : "Now, try to repeat what I said."}
                 </p>
 
-                <p className={"actionText subText"}>
+                <p className="actionText subText">
                   {showChinese
                     ? "如果你不知道，就说出你记得的。"
-                    : "If you don't know, just say " + "what you remember."}
+                    : "If you don't know, just say what you remember."}
                 </p>
               </div>
             ) : (
@@ -559,7 +516,7 @@ const Repetition = ({
         </div>
       ) : finishedListening ? (
         <div className="listeningContainer">
-          <div className={"microphoneAnimationContainer"}>
+          <div className="microphoneAnimationContainer">
             <div className="listeningBar" />
             <div className="listeningBar" />
             <div className="listeningBar" />
@@ -630,17 +587,21 @@ const Repetition = ({
             {videoError}
           </p>
 
-          {finishedListening && !recording && !pendingAudioBlobRef.current && (
-            <button type="button" onClick={startResponseRecording}>
-              {showChinese ? "重试开始录音" : "Retry starting recording"}
-            </button>
-          )}
+          {finishedListening &&
+            !recording &&
+            !pendingAudioBlobRef.current && (
+              <button type="button" onClick={startResponseRecording}>
+                {showChinese
+                  ? "重试开始录音"
+                  : "Retry starting recording"}
+              </button>
+            )}
         </div>
       )}
 
       <div style={{ height: 40 }} />
 
-      <div className={"submitButtonContainer"}>
+      <div className="submitButtonContainer">
         <GreenButton
           className="testNextButton"
           showChinese={showChinese}
