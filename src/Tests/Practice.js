@@ -20,7 +20,6 @@ const Practice = ({
   showChinese,
 }) => {
   const [showPracticeQuestion, setShowPracticeQuestion] = useState(true);
-
   const [showGuidedTutorial, setShowGuidedTutorial] = useState(true);
 
   const finishPractice = () => {
@@ -61,13 +60,8 @@ const Practice = ({
     );
   };
 
-  /*
-   * Practice repetition recordings should
-   * not be included with the participant's
-   * real test recordings.
-   */
   const discardPracticeRecording = () => {
-    // Intentionally do nothing.
+    // Practice recordings are intentionally not saved.
   };
 
   return (
@@ -107,10 +101,6 @@ const Practice = ({
                 recordAnswer={finishPractice}
                 showChinese={showChinese}
                 recordAudioBlob={discardPracticeRecording}
-                /*
-                 * Do not create research video
-                 * sessions for the practice item.
-                 */
                 enableVideo={false}
               />
             </div>
@@ -141,13 +131,9 @@ const PracticePage = ({
   language,
 }) => {
   const [audioPlaying, setAudioPlaying] = useState(false);
-
   const [replay, setReplay] = useState(false);
-
   const [finishedListening, setFinishedListening] = useState(false);
-
   const [countDown, setCountDown] = useState(3);
-
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const timeoutRef = useRef(null);
@@ -172,7 +158,10 @@ const PracticePage = ({
       });
 
       instructionAudio.play().catch((error) => {
-        console.error("Could not play practice transition audio:", error);
+        console.error(
+          "Could not play practice transition audio:",
+          error,
+        );
 
         setAudioPlaying(false);
         setFinishedListening(true);
@@ -203,7 +192,10 @@ const PracticePage = ({
       });
 
       instructionAudio.play().catch((error) => {
-        console.error("Could not replay practice transition audio:", error);
+        console.error(
+          "Could not replay practice transition audio:",
+          error,
+        );
 
         setAudioPlaying(false);
       });
@@ -229,12 +221,14 @@ const PracticePage = ({
             <IconButton aria-label="pause" disabled>
               <PauseCircleIcon
                 color="primary"
-                className={"pauseButton disabled"}
+                className="pauseButton disabled"
               />
             </IconButton>
 
             <p className="actionText">
-              {showChinese ? "播放说明..." : "Playing instructions..."}
+              {showChinese
+                ? "播放说明..."
+                : "Playing instructions..."}
             </p>
           </div>
         ) : (
@@ -252,14 +246,17 @@ const PracticePage = ({
                 }
               }}
             >
-              <PlayCircleIcon color="primary" className="pauseButton" />
+              <PlayCircleIcon
+                color="primary"
+                className="pauseButton"
+              />
             </IconButton>
 
             {countDown > 0 ? (
               <p className="actionText">
                 {showChinese
                   ? `${countDown} 秒内播放音频`
-                  : `Audio playing in ` + `${countDown} second(s)`}
+                  : `Audio playing in ${countDown} second(s)`}
               </p>
             ) : (
               <p className="actionText">
@@ -284,10 +281,12 @@ const PracticePage = ({
         />
       </div>
 
-      <div className={"submitButtonContainer"}>
+      <div className="submitButtonContainer">
         <GreenButton
           showChinese={showChinese}
-          textEnglish={language === "second" ? "Continue" : "Begin Test"}
+          textEnglish={
+            language === "second" ? "Continue" : "Begin Test"
+          }
           textChinese="开始测试"
           disabled={!finishedListening}
           onClick={() => {
@@ -323,7 +322,9 @@ const PracticePage = ({
             `Are you sure you want ` +
             `to begin the ${
               isEnglishLanguage(language) ? "English" : "Chinese"
-            } ${type === "repetition" ? "repetition" : "matching"} test?`
+            } ${
+              type === "repetition" ? "repetition" : "matching"
+            } test?`
           }
           chineseText={`您确定要开始${
             isEnglishLanguage(language) ? "英文" : "中文"
