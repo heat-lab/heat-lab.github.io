@@ -1,198 +1,362 @@
-import React, { useState, useEffect, useRef } from "react";
-import "./Test.scss";
-import PauseCircleIcon from "@mui/icons-material/PauseCircle";
-import PlayCircleIcon from "@mui/icons-material/PlayCircle";
-import IconButton from "@mui/material/IconButton";
-import GreenButton from "../Components/GreenButton";
+import React, { useEffect, useRef, useState } from "react";
+import { ReactMic } from "react-mic";
 
-let questionAudio;
+import VideoRecorder from "../Components/VideoRecorder";
 
-const Question = ({ curQuestion, recordAnswer, showChinese }) => {
-  const [audioPlaying, setAudioPlaying] = useState(false);
-  const [countDown, setCountDown] = useState(3);
-  const [paused, setPaused] = useState(false);
-  const [remainingPlayCount, setRemainingPlayCount] = useState(2);
-  const [disableOption, setDisableOption] = useState(true);
-  const [selectedIdx, setSelectedIdx] = useState(-1);
+import "./StoryTest.css";
 
-  const timeoutRef = useRef(null);
+const normalizeLanguage = (question) => {
+  const suppliedLanguage = String(question?.language || "").toLowerCase();
+
+  if (
+    suppliedLanguage === "cn" ||
+    suppliedLanguage === "chinese" ||
+    suppliedLanguage === "zh"
+  ) {
+    return "CN";
+  }
+
+  if (suppliedLanguage === "en" || suppliedLanguage === "english") {
+    return "EN";
+  }
+
+  const currentRoute =
+    `${window.location.pathname}` + `${window.location.hash}`;
+
+  return currentRoute.toLowerCase().includes("story-test-chinese")
+    ? "CN"
+    : "EN";
+};
+
+const Questions = ({
+  showChinese,
+  beforeUnload,
+  question,
+  uploadToLambda,
+  type,
+  disableOption,
+}) => {
+  const [recording, setRecording] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [pendingRecording, setPendingRecording] = useState(null);
+  const [videoError, setVideoError] = useState("");
+
+  const micRef = useRef(null);
+  const videoRecorderRef = useRef(null);
+  const videoStopPromiseRef = useRef(Promise.resolve(null));
+  const lastVideoStopErrorRef = useRef(null);
+  const uploadedAudioUrlRef = useRef(null);
+
+  const questionText = question?.question_text || "";
+  const questionId = question?.question_id ?? "";
+  const storyId = question?.story_id ?? "unknown";
+  const participantId = localStorage.getItem("username") || "";
+  const testLanguage = normalizeLanguage(question);
+
+  const cameraQuestionId =
+    `story-${storyId}-` + `question-${questionId || "unknown"}`;
+
+  const questionImages = Array.isArray(question?.image_links)
+    ? question.image_links
+    : [];
 
   useEffect(() => {
-    if (questionAudio instanceof Audio) {
-      questionAudio.pause();
+    setRecording(false);
+    setUploading(false);
+    setUploadError("");
+    setPendingRecording(null);
+    setVideoError("");
+
+    uploadedAudioUrlRef.current = null;
+    videoStopPromiseRef.current = Promise.resolve(null);
+    lastVideoStopErrorRef.current = null;
+  }, [questionId, storyId]);
+
+  const startRecording = async () => {
+    if (uploading || disableOption) {
+      return;
     }
-    setAudioPlaying(false);
-    setCountDown(3);
-    setPaused(false);
-    setRemainingPlayCount(2);
-  }, [curQuestion]);
 
-  useEffect(() => {
-    console.log("disabled: " + disableOption);
-    clearTimeout(timeoutRef.current);
+    setUploadError("");
+    setVideoError("");
+    setPendingRecording(null);
 
-    if (countDown > 0 && !paused) {
-      timeoutRef.current = setTimeout(() => {
-        setCountDown((prevCountDown) => prevCountDown - 1);
-      }, 1000);
-    } else {
-      if (remainingPlayCount > 0 && !paused) {
-        questionAudio = new Audio(curQuestion.question_link);
+    uploadedAudioUrlRef.current = null;
 
-        questionAudio.addEventListener("play", () => {
-          setAudioPlaying(true);
-          setRemainingPlayCount((prePlayCount) => prePlayCount - 1);
-        });
+    try {
+      await videoRecorderRef.current?.startRecording();
 
-        questionAudio.addEventListener("ended", () => {
-          setAudioPlaying(false);
+      videoStopPromiseRef.current = Promise.resolve(null);
+      lastVideoStopErrorRef.current = null;
 
-          if (disableOption) {
-            setDisableOption(false);
-          }
+      setRecording(true);
+    } catch (error) {
+      const message = error.message || "The cameras are not ready.";
 
-          setRemainingPlayCount((prevPlayCount) => {
-            if (prevPlayCount > 0) {
-              setCountDown(10);
-            }
+      setVideoError(message);
+      alert("Video is not ready: " + message);
+    }
+  };
 
-            return prevPlayCount;
-          });
-        });
+  const stopCameraRecording = () => {
+    lastVideoStopErrorRef.current = null;
 
-        questionAudio.play().catch((error) => {
-          alert("error in playing question.", error);
-          setDisableOption(false);
-        });
+    const stopPromise = (async () => {
+      try {
+        await videoRecorderRef.current?.stopRecording();
+
+        return null;
+      } catch (error) {
+        lastVideoStopErrorRef.current = error;
+
+        setVideoError(
+          error.message || "The video recording could not be stopped.",
+        );
+
+        return error;
       }
+    })();
+
+    videoStopPromiseRef.current = stopPromise;
+
+    return stopPromise;
+  };
+
+  const stopRecording = () => {
+    if (!recording) {
+      return;
     }
 
-    return () => clearTimeout(timeoutRef.current);
-  }, [countDown, paused]);
+    stopCameraRecording();
+    setRecording(false);
+  };
 
-  const gotoNextQuestion = (idx) => {
-    setDisableOption(true);
-    recordAnswer(curQuestion.question_id, idx + 1);
+  const uploadRecording = async (recordedBlob) => {
+    if (!recordedBlob?.blob) {
+      setUploadError(
+        showChinese
+          ? "没有找到录音。请重新录制。"
+          : "No recording was found. Please record your answer again.",
+      );
+
+      return;
+    }
+
+    setUploading(true);
+    setUploadError("");
+    setVideoError("");
+    setPendingRecording(recordedBlob);
+
+    try {
+      let audioUrl = uploadedAudioUrlRef.current;
+
+      if (!audioUrl) {
+        audioUrl = await uploadToLambda(recordedBlob, type);
+
+        if (!audioUrl) {
+          throw new Error(
+            "The server did not return a recording URL.",
+          );
+        }
+
+        uploadedAudioUrlRef.current = audioUrl;
+      }
+
+      const videoStopError = await videoStopPromiseRef.current;
+
+      if (videoStopError) {
+        throw videoStopError;
+      }
+
+      await videoRecorderRef.current?.waitForUpload();
+
+      setPendingRecording(null);
+
+      beforeUnload();
+    } catch (error) {
+      console.error("Story question upload failed:", error);
+
+      setUploadError(
+        showChinese
+          ? "上传失败。录音仍保留在此页面。请检查摄像头并点击重试。"
+          : "Upload failed. Your audio is still available on this page. " +
+              "Check every camera and click Retry upload.",
+      );
+
+      setVideoError(
+        error.message ||
+          "One or more recordings failed to upload.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onStop = async (recordedBlob) => {
+    if (recordedBlob?.blobURL) {
+      console.log("Local recording URL:", recordedBlob.blobURL);
+    }
+
+    await uploadRecording(recordedBlob);
+  };
+
+  const retryUpload = async () => {
+    if (!pendingRecording) {
+      return;
+    }
+
+    if (lastVideoStopErrorRef.current) {
+      stopCameraRecording();
+    }
+
+    await uploadRecording(pendingRecording);
   };
 
   return (
-    <div>
-      <div className="indicator">
-        {audioPlaying ? (
-          <div>
-            <IconButton aria-label="pause" disabled>
-              <PauseCircleIcon
-                color="primary"
-                className="pauseButton disabled"
-              />
-            </IconButton>
+    <div id="questions">
+      <VideoRecorder
+        ref={videoRecorderRef}
+        participantId={participantId}
+        questionId={cameraQuestionId}
+        testType="story-question"
+        language={testLanguage}
+        showChinese={showChinese}
+      />
 
-            <p className="actionText">
-              {showChinese ? <>播放中</> : <>Playing question</>}
-            </p>
-          </div>
-        ) : (
-          <div>
-            {paused ? (
-              <IconButton
-                disabled={remainingPlayCount < 1}
-                aria-label="play"
-                style={{ marginBottom: "0" }}
-                onClick={() => {
-                  setPaused(false);
-                  setCountDown(countDown);
-                }}
-              >
-                <PlayCircleIcon
-                  color="primary"
-                  className={
-                    "pauseButton" +
-                    (remainingPlayCount < 1 ? " disabled" : "")
-                  }
-                />
-              </IconButton>
-            ) : (
-              <IconButton
-                disabled={remainingPlayCount < 1}
-                aria-label="pause"
-                style={{ marginBottom: "0" }}
-                onClick={() => {
-                  setPaused(true);
-                }}
-              >
-                <PauseCircleIcon
-                  color="primary"
-                  className={
-                    "pauseButton" +
-                    (remainingPlayCount < 1 ? " disabled" : "")
-                  }
-                />
-              </IconButton>
-            )}
-
-            {paused ? (
-              <p className="actionText">
-                {showChinese ? <>已被用户暂停</> : <>Paused by user</>}
-              </p>
-            ) : remainingPlayCount > 0 ? (
-              <p className="actionText">
-                {showChinese ? (
-                  <>{countDown} 秒内播放音频</>
-                ) : (
-                  <>Audio playing in {countDown} second(s)</>
-                )}
-              </p>
-            ) : (
-              <p className="actionText">
-                {showChinese ? <>单击图片选择</> : <>Click image to choose</>}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="imagesContainer">
-        {curQuestion.options.map((url, idx) => (
-          <div
-            className={`imageContainer ${
-              selectedIdx === idx ? "selected" : "unselected"
-            }`}
-            onClick={() => {
-              if (idx === selectedIdx) {
-                setSelectedIdx(-1);
-              } else {
-                setSelectedIdx(idx);
-              }
-            }}
-          >
-            <img className="image" src={url} alt="choice"></img>
-
-            <div
-              className={`imageSelectedOverlay ${
-                selectedIdx === idx ? "visible" : ""
-              }`}
-            ></div>
-          </div>
-        ))}
-      </div>
-
-      <div className="submitButtonContainer">
-        <GreenButton
-          className="testNextButton"
-          showChinese={showChinese}
-          textEnglish="Next"
-          textChinese="下一个"
-          disabled={selectedIdx === -1 || disableOption}
-          onClick={() => {
-            if (selectedIdx !== -1 && !disableOption) {
-              gotoNextQuestion(selectedIdx);
-              setSelectedIdx(-1);
-            }
-          }}
+      <div className="reactMicContainer">
+        <ReactMic
+          record={recording}
+          onStop={onStop}
+          ref={micRef}
+          visualSetting="none"
+          mimeType="audio/webm"
         />
       </div>
+
+      <h1 className="storyQuestion">
+        {`${questionId}${
+          questionId !== "" ? ". " : ""
+        }${questionText}`}
+      </h1>
+
+      {questionImages.length > 0 ? (
+        <div className="container">
+          {questionImages.map((item, index) => (
+            <div
+              className="itemContainer"
+              key={item || index}
+            >
+              <img
+                src={item}
+                alt="story scene"
+                className="storyItem"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space" />
+      )}
+
+      {recording ? (
+        <div
+          className="recordingActionContainer"
+          onClick={stopRecording}
+        >
+          <div className="recordingContainer">
+            <div className="listeningBar" />
+            <div className="listeningBar" />
+            <div className="listeningBar" />
+            <div className="listeningBar" />
+
+            <p>{showChinese ? "正在聆听..." : "Listening..."}</p>
+
+            <div className="listeningBar" />
+            <div className="listeningBar" />
+            <div className="listeningBar" />
+            <div className="listeningBar" />
+          </div>
+
+          {showChinese
+            ? "（再次点击提交答案）"
+            : "(click again to submit answer)"}
+        </div>
+      ) : uploading ? (
+        <div className="recordingContainer disabled">
+          <p>
+            {showChinese
+              ? "正在上传音频和视频..."
+              : "Uploading audio and camera recordings..."}
+          </p>
+        </div>
+      ) : uploadError && pendingRecording ? (
+        <div>
+          <p
+            style={{
+              color: "#b00020",
+              fontWeight: 700,
+              textAlign: "center",
+              maxWidth: 500,
+            }}
+          >
+            {uploadError}
+          </p>
+
+          <div
+            className="recordingContainer enabled"
+            onClick={retryUpload}
+          >
+            <p>{showChinese ? "点击重试上传" : "Retry upload"}</p>
+          </div>
+        </div>
+      ) : disableOption ? (
+        <div className="recordingContainer disabled">
+          <p>
+            {showChinese
+              ? "正在播放说明..."
+              : "Instructions playing..."}
+          </p>
+        </div>
+      ) : (
+        <div
+          className="recordingContainer enabled"
+          onClick={startRecording}
+        >
+          <p>
+            {showChinese
+              ? "点击录制答案"
+              : "Click to record answer"}
+          </p>
+        </div>
+      )}
+
+      {videoError && (
+        <p
+          style={{
+            color: "#b00020",
+            fontWeight: 700,
+            textAlign: "center",
+            maxWidth: 600,
+            margin: "16px auto 0",
+          }}
+        >
+          {videoError}
+        </p>
+      )}
+
+      {uploadError && !pendingRecording && (
+        <p
+          style={{
+            color: "#b00020",
+            fontWeight: 700,
+          }}
+        >
+          {uploadError}
+        </p>
+      )}
     </div>
   );
 };
 
-export default Question;
+export default Questions;
