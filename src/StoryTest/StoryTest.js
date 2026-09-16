@@ -798,6 +798,8 @@ const StoryTest = ({ language }) => {
           }}
           disableOption={disableOption}
           question={questions[subStage - 1]}
+          storyId={currentStory}
+          testLanguage={isChinese ? "CN" : "EN"}
           displayNumber={subStage}
           uploadToLambda={uploadToLambda}
           type="question"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ReactMic } from "react-mic";
 import BlueButton from "../Components/BlueButton";
+import VideoRecorder from "../Components/VideoRecorder";
 import "./StoryTest.css";
 
 const MAX_RECORDING_ATTEMPTS = 2;
@@ -14,15 +15,25 @@ const Questions = ({
   type,
   disableOption,
   onStartRecording,
+  storyId,
+  testLanguage,
 }) => {
   const [recording, setRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
   const [recordingAttempts, setRecordingAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [startingRecording, setStartingRecording] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [videoError, setVideoError] = useState("");
   const micRef = useRef(null);
+  const videoRecorderRef = useRef(null);
+  const videoStopPromiseRef = useRef(Promise.resolve(null));
+  const lastVideoStopErrorRef = useRef(null);
+  const uploadedAudioUrlRef = useRef(null);
   const questionText = question?.question_text || "";
   const questionId = question?.question_id ?? "";
+  const cameraQuestionId = `story-${storyId ?? question?.story_id ?? "unknown"}-question-${questionId || "unknown"}`;
   const questionImages = Array.isArray(question?.image_links)
     ? question.image_links
     : [];
@@ -33,20 +44,58 @@ const Questions = ({
     setRecordedAudioUrl("");
     setRecordingAttempts(0);
     setSubmitting(false);
-  }, [questionId]);
+    setStartingRecording(false);
+    setUploadError("");
+    setVideoError("");
+    uploadedAudioUrlRef.current = null;
+    videoStopPromiseRef.current = Promise.resolve(null);
+    lastVideoStopErrorRef.current = null;
+  }, [questionId, storyId]);
 
-  const startRecording = () => {
-    if (disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS) {
+  const startRecording = async () => {
+    if (disableOption || submitting || startingRecording || recordingAttempts >= MAX_RECORDING_ATTEMPTS) {
       return;
     }
 
     setRecordedBlob(null);
     setRecordedAudioUrl("");
-    onStartRecording?.(); // auto pause the audio
-    setRecording(true);
+    setUploadError("");
+    setVideoError("");
+    uploadedAudioUrlRef.current = null;
+    setStartingRecording(true);
+
+    try {
+      await videoRecorderRef.current?.startRecording();
+      videoStopPromiseRef.current = Promise.resolve(null);
+      lastVideoStopErrorRef.current = null;
+      onStartRecording?.(); // auto pause the audio
+      setRecording(true);
+    } catch (error) {
+      setVideoError(error.message || "The cameras are not ready.");
+    } finally {
+      setStartingRecording(false);
+    }
+  };
+
+  const stopCameraRecording = () => {
+    lastVideoStopErrorRef.current = null;
+    const stopPromise = (async () => {
+      try {
+        await videoRecorderRef.current?.stopRecording();
+        return null;
+      } catch (error) {
+        lastVideoStopErrorRef.current = error;
+        setVideoError(error.message || "The video recording could not be stopped.");
+        return error;
+      }
+    })();
+    videoStopPromiseRef.current = stopPromise;
+    return stopPromise;
   };
 
   const stopRecording = () => {
+    if (!recording) return;
+    stopCameraRecording();
     setRecording(false);
   };
 
@@ -69,12 +118,27 @@ const Questions = ({
     }
 
     setSubmitting(true);
+    setUploadError("");
     try {
-      const s3Url = await uploadToLambda(recordedBlob, type, questionId);
-      console.log("Recording stored at:", s3Url);
+      if (lastVideoStopErrorRef.current) {
+        stopCameraRecording();
+      }
+
+      if (!uploadedAudioUrlRef.current) {
+        const s3Url = await uploadToLambda(recordedBlob, type, questionId);
+        if (!s3Url) {
+          throw new Error("The server did not return a recording URL.");
+        }
+        uploadedAudioUrlRef.current = s3Url;
+      }
+
+      const videoStopError = await videoStopPromiseRef.current;
+      if (videoStopError) throw videoStopError;
+      await videoRecorderRef.current?.waitForUpload();
       beforeUnload();
     } catch (error) {
       console.error("Failed to upload question audio:", error);
+      setUploadError(error.message || "One or more recordings failed to upload.");
     } finally {
       setSubmitting(false);
     }
@@ -82,6 +146,14 @@ const Questions = ({
 
   return (
     <div id="questions">
+      <VideoRecorder
+        ref={videoRecorderRef}
+        participantId={localStorage.getItem("username") || ""}
+        questionId={cameraQuestionId}
+        testType="story-question"
+        language={testLanguage}
+        showChinese={showChinese}
+      />
       <div className="reactMicContainer">
         <ReactMic
           record={recording}
@@ -120,6 +192,10 @@ const Questions = ({
           {showChinese
             ? "（再次点击停止录音）"
             : "(click again to stop recording)"}
+        </div>
+      ) : startingRecording || submitting ? (
+        <div className="recordingContainer disabled">
+          <p>{showChinese ? "正在准备或上传录音..." : "Preparing or uploading recordings..."}</p>
         </div>
       ) : disableOption ? (
         <div className="recordingContainer disabled">
@@ -166,13 +242,19 @@ const Questions = ({
           <div className="submitButtonContainer">
             <BlueButton
               showChinese={showChinese}
-              textEnglish={submitting ? "Submitting..." : "Submit recording"}
-              textChinese={submitting ? "提交中..." : "提交录音"}
+              textEnglish={submitting ? "Submitting..." : uploadError ? "Retry submission" : "Submit recording"}
+              textChinese={submitting ? "提交中..." : uploadError ? "重试提交" : "提交录音"}
               onClick={submitRecording}
               disabled={submitting}
             />
           </div>
         </div>
+      )}
+
+      {(uploadError || videoError) && (
+        <p role="alert" style={{ color: "#b00020", fontWeight: 700 }}>
+          {uploadError || videoError}
+        </p>
       )}
     </div>
   );
