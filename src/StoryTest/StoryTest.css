@@ -258,6 +258,45 @@
   box-shadow: 0px 2px 12px rgba(0, 0, 0, 0.3);
 }
 
+.recordingContainer.stopRecording {
+  background-color: rgb(99, 106, 113);
+  border: 1px solid rgb(80, 86, 92);
+  color: white;
+}
+
+.recordingContainer.stopRecording:hover {
+  background-color: rgb(85, 91, 98);
+}
+
+.retellReviewContainer,
+.recordingReviewContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.retellReviewContainer .submitButtonContainer,
+.recordingReviewContainer .submitButtonContainer {
+  margin-top: 8px;
+  margin-bottom: 20px;
+}
+
+.recordingAttemptText,
+#retell .recordingAttemptText,
+#questions .recordingAttemptText {
+  margin: 10px 0 0;
+  color: rgb(85, 87, 113);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.retellAudioPlayer {
+  width: 300px;
+  max-width: 90vw;
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);

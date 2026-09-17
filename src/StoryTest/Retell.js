@@ -1,16 +1,11 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ReactMic } from "react-mic";
-
 import BlueButton from "../Components/BlueButton";
 import TranslationButton from "../Components/TranslationButton";
+import "./StoryTest.css";
 import VideoRecorder from "../Components/VideoRecorder";
 
-import "./StoryTest.css";
-
+const MAX_RECORDING_ATTEMPTS = 2;
 
 const Retell = ({
   imageLinks,
@@ -20,212 +15,123 @@ const Retell = ({
   type,
   disableOption,
   beforeUnload,
+  onStartRecording,
   participantId,
   questionId,
+  explicitQuestionId,
   testLanguage,
 }) => {
-  const [
-    recording,
-    setRecording,
-  ] = useState(false);
-
-  const [
-    audioUrl,
-    setAudioUrl,
-  ] = useState(null);
-
-  const [
-    audioBlob,
-    setAudioBlob,
-  ] = useState(null);
-
-  const [
-    timeLeft,
-    setTimeLeft,
-  ] = useState(30);
-
-  const [
-    showExceededMessage,
-    setShowExceededMessage,
-  ] = useState(false);
-
-  const [
-    hasRecorded,
-    setHasRecorded,
-  ] = useState(false);
-
-  const [
-    submitting,
-    setSubmitting,
-  ] = useState(false);
-
-  const [
-    videoError,
-    setVideoError,
-  ] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState("");
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [submitting, setSubmitting] = useState(false);
+  const [showExceededMessage, setShowExceededMessage] = useState(false);
+  const [hasRecorded, setHasRecorded] = useState(false);
+  const [recordingAttempts, setRecordingAttempts] = useState(0);
+  const [videoError, setVideoError] = useState("");
 
   const countdownRef = useRef(null);
-  const audioRef = useRef(null);
   const videoRecorderRef = useRef(null);
+  const promptKey = imageLinks.map((item) => item.link || item).join("|");
 
   useEffect(() => {
+    setAudioBlob(null);
+    setRecordedAudioUrl("");
+    setHasRecorded(false);
+    setRecordingAttempts(0);
     setTimeLeft(30);
-  }, [questionId]);
+  }, [promptKey]);
 
-  useEffect(
-    () => () => {
-      if (
-        audioRef.current
-        instanceof Audio
-      ) {
-        audioRef.current.pause();
-      }
+  useEffect(() => {
+    return () => {
+      clearTimeout(countdownRef.current);
+    };
+  }, []);
 
-      clearInterval(
-        countdownRef.current
-      );
-    },
-    []
-  );
+  const onStop = async (recorded) => {
+    if (!recorded || !recorded.blob) {
+      return;
+    }
 
-  const onStop = (recorded) => {
-    setAudioUrl(recorded.blobURL);
     setAudioBlob(recorded.blob);
+    setRecordedAudioUrl(recorded.blobURL || "");
     setRecording(false);
     setHasRecorded(true);
+    setRecordingAttempts((prev) =>
+      Math.min(prev + 1, MAX_RECORDING_ATTEMPTS)
+    );
+  };
+
+  const startRecording = async () => {
+    if (disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS) return;
+    setShowExceededMessage(false);
+    setHasRecorded(false);
+    setAudioBlob(null);
+    setRecordedAudioUrl("");
+    setVideoError("");
+
+    try {
+      await videoRecorderRef.current?.startRecording();
+    } catch (error) {
+      // Video is an optional add-on to the required audio recording,
+      // so a camera/session failure must not block audio capture.
+      setVideoError(error.message);
+    }
+
+    onStartRecording?.(); // auto pause the audio
+    setRecording(true);
+    setTimeLeft(30);
+
+    clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current);
+          setShowExceededMessage(true);
+          setRecording(false);
+          videoRecorderRef.current?.stopRecording().catch((error) => {
+            setVideoError(error.message);
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const stopRecording = () => {
     setRecording(false);
-
-    clearInterval(
-      countdownRef.current
-    );
-
-    videoRecorderRef.current
-      ?.stopRecording()
-      .catch((error) => {
-        setVideoError(
-          error.message
-        );
-      });
-  };
-
-  const startRecording = async () => {
-    if (
-      disableOption
-      || submitting
-    ) {
-      return;
-    }
-
-    setVideoError("");
-    setShowExceededMessage(false);
-    setHasRecorded(false);
-    setAudioBlob(null);
-    setAudioUrl(null);
-
-    try {
-      await videoRecorderRef.current
-        ?.startRecording();
-
-    } catch (error) {
+    clearInterval(countdownRef.current);
+    videoRecorderRef.current?.stopRecording().catch((error) => {
       setVideoError(error.message);
-
-      alert(
-        "Video is not ready: " +
-          error.message
-      );
-
-      return;
-    }
-
-    setRecording(true);
-    setTimeLeft(30);
-
-    clearInterval(
-      countdownRef.current
-    );
-
-    countdownRef.current =
-      setInterval(() => {
-        setTimeLeft((previous) => {
-          if (previous <= 1) {
-            clearInterval(
-              countdownRef.current
-            );
-
-            setShowExceededMessage(
-              true
-            );
-
-            setRecording(false);
-
-            videoRecorderRef.current
-              ?.stopRecording()
-              .catch((error) => {
-                setVideoError(
-                  error.message
-                );
-              });
-
-            return 0;
-          }
-
-          return previous - 1;
-        });
-      }, 1000);
+    });
   };
 
   const submitRecording = async () => {
-    if (
-      !audioBlob
-      || submitting
-    ) {
-      return;
-    }
-
+    if (!audioBlob) return;
     setSubmitting(true);
-
     try {
-      await uploadToLambda(
-        {
-          blob: audioBlob,
-          blobURL: audioUrl,
-        },
-        type
+      const s3Url = await uploadToLambda(
+        audioBlob,
+        type,
+        explicitQuestionId
       );
-
-      await videoRecorderRef.current
-        ?.waitForUpload();
-
-      beforeUnload?.();
-
-    } catch (error) {
-      alert(
-        "Failed to submit recording: " +
-          error.message
-      );
-
+      if (!s3Url) {
+        throw new Error("The server did not return a recording URL.");
+      }
+      await videoRecorderRef.current?.waitForUpload();
+      beforeUnload();
+    } catch (e) {
+      console.error("Failed to submit retell audio:", e);
+      alert("Failed to submit audio.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div
-      id="retell"
-      className="retell"
-    >
-      <VideoRecorder
-        ref={videoRecorderRef}
-        participantId={participantId}
-        questionId={questionId}
-        testType="story-retell"
-        language={testLanguage}
-        showChinese={showChinese}
-      />
-
+    <div id="retell" className="retell">
       <div className="reactMicContainer">
         <ReactMic
           record={recording}
@@ -238,144 +144,115 @@ const Retell = ({
       </div>
 
       <div className="container">
-        {imageLinks.map(
-          (link, index) => (
-            <div
-              key={index}
-              className="itemContainer"
-            >
-              <p>{index + 1}.</p>
-
-              <img
-                src={link}
-                alt="story scene"
-                className="storyItem"
-              />
+        {imageLinks.map((item, idx) => {
+          const link = item?.link || item;
+          return (
+            <div key={item?.id || link || idx} className="itemContainer">
+              <p>{idx + 1}.</p>
+              <img src={link} alt="story scene" className="storyItem" />
             </div>
-          )
-        )}
+          );
+        })}
       </div>
 
       {recording ? (
-        <div
-          className={
-            "recordingActionContainer"
-          }
-          onClick={stopRecording}
-        >
-          <p className="actionText">
-            {showChinese
-              ? "点击停止录音"
-              : "Tap to stop recording"}
-          </p>
+        <div className="recordingActionContainer" onClick={stopRecording}>
+          <div className="recordingContainer stopRecording">
+            <p className="actionText">
+              {showChinese ? "点击停止录音" : "Tap to stop recording"}
+            </p>
+          </div>
         </div>
       ) : (
         <div
           className={
-            disableOption
-              ? (
-                  "recordingContainer " +
-                  "disabled"
-                )
-              : (
-                  "recordingContainer " +
-                  "enabled"
-                )
+            disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS
+              ? "recordingContainer disabled"
+              : "recordingContainer enabled"
           }
           onClick={
-            disableOption
+            disableOption || recordingAttempts >= MAX_RECORDING_ATTEMPTS
               ? undefined
               : startRecording
           }
         >
           <p className="actionText">
-            {showChinese
-              ? "点击开始录音"
-              : "Tap to start recording"}
+            {recordingAttempts >= MAX_RECORDING_ATTEMPTS
+              ? showChinese
+                ? "已达到两次录音上限"
+                : "Two recording attempts used"
+              : showChinese
+                ? "点击开始录音"
+                : "Tap to start recording"}
           </p>
         </div>
       )}
 
+      <p className="recordingAttemptText">
+        {showChinese
+          ? `录音次数：${recordingAttempts}/${MAX_RECORDING_ATTEMPTS}`
+          : `Recording attempts: ${recordingAttempts}/${MAX_RECORDING_ATTEMPTS}`}
+      </p>
+
       {showExceededMessage && (
         <p className="actionText">
           {showChinese
-            ? (
-                "录音已达到最大时间，" +
-                "请提交。"
-              )
-            : (
-                "The recording reached " +
-                "the maximum time. " +
-                "Please submit it."
-              )}
+            ? "录音已超过最大时间，请继续。"
+            : "Recording has exceeded the maximum time, please proceed."}
         </p>
       )}
 
       <p className="actionText">
         {showChinese
-          ? (
-              `录音剩余时间：` +
-              `${timeLeft} 秒`
-            )
-          : (
-              `Recording time left: ` +
-              `${timeLeft} seconds`
-            )}
+          ? `录音剩余时间：${timeLeft} 秒`
+          : `Recording time left: ${timeLeft} seconds`}
       </p>
 
-      {videoError && (
-        <p
-          style={{
-            color: "#b00020",
-            fontWeight: 700,
-          }}
-        >
-          {videoError}
-        </p>
-      )}
-
       {hasRecorded && (
-        <div
-          className={
-            "submitButtonContainer"
-          }
-        >
-          <BlueButton
-            showChinese={showChinese}
-            textEnglish={
-              submitting
-                ? "Submitting..."
-                : "Submit recording"
-            }
-            textChinese={
-              submitting
-                ? "提交中..."
-                : "提交录音"
-            }
-            onClick={submitRecording}
-            disabled={
-              !audioBlob
-              || submitting
-            }
-          />
+        <div className="retellReviewContainer">
+          {recordedAudioUrl && (
+            <audio
+              controls
+              src={recordedAudioUrl}
+              className="retellAudioPlayer"
+            />
+          )}
+          <div className="submitButtonContainer">
+            <BlueButton
+              showChinese={showChinese}
+              textEnglish={submitting ? "Submitting..." : "Submit recording"}
+              textChinese="提交录音"
+              onClick={submitRecording}
+              disabled={!audioBlob || submitting}
+            />
+          </div>
         </div>
       )}
 
-      <div
-        style={{
-          marginTop: 16,
-        }}
-      >
+      <div style={{ marginTop: 32 }}>
+        <h2>{showChinese ? "视频回答选项" : "Video response options"}</h2>
+        <VideoRecorder
+          ref={videoRecorderRef}
+          participantId={participantId}
+          questionId={questionId}
+          testType="story-retell"
+          language={testLanguage}
+          showChinese={showChinese}
+        />
+      </div>
+
+      {videoError && (
+        <p style={{ color: "#b00020", fontWeight: 700 }}>{videoError}</p>
+      )}
+
+      <div style={{ marginTop: 16 }}>
         <TranslationButton
           showChinese={showChinese}
-          setShowChinese={
-            setShowChinese
-          }
+          setShowChinese={setShowChinese}
         />
       </div>
     </div>
   );
 };
-
 
 export default Retell;

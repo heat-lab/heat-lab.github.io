@@ -1,1058 +1,648 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PauseCircleIcon from "@mui/icons-material/PauseCircle";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import IconButton from "@mui/material/IconButton";
+import GreenButton from "../Components/GreenButton";
+import Story from "./Story";
+import TranslationButton from "../Components/TranslationButton";
 import AppBar from "@mui/material/AppBar";
 import CircularProgress from "@mui/material/CircularProgress";
-import {
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
-
-import GreenButton from "../Components/GreenButton";
-import TranslationButton from "../Components/TranslationButton";
-import Confirmation from "../Components/Confirmation";
-import Story from "./Story";
+import { useLocation, useNavigate } from "react-router-dom";
+import "../Tests/Test.scss";
 import Retell from "./Retell";
 import Questions from "./Questions";
-import Instructions from "./Instructions";
 import CompletionPage from "../Tests/CompletionPage";
+import Confirmation from "../Components/Confirmation";
+import Instructions from "./Instructions";
 import AudioPermission from "../Tests/AudioPermission";
 import { APIBASEURL } from "../config";
+import { isChineseLanguage } from "../utils/language";
 import { buildRecordingBin } from "../utils/recordingBins";
-
-import "../Tests/Test.scss";
-
 
 let questionAudio;
 let audioLink;
 
+const LAMBDAAPIENDPOINT = `${APIBASEURL}/audio-upload`;
 
-const LAMBDAAPIENDPOINT =
-  `${APIBASEURL}/audio-upload`;
+const narrationInstructionEnglish =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/narration_instructions.m4a";
+const narrationInstructionChinese =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/comprehension/2-dog-story/025%2BMandarin.m4a";
 
-
-const narrationInstruction =
-  "https://merls-story-audio." +
-  "s3.us-east-2.amazonaws.com/" +
-  "instruction/" +
-  "narration_instructions.m4a";
-
-
-const retellingLinks = [
-  (
-    "https://merls-story-audio." +
-    "s3.us-east-2.amazonaws.com/" +
-    "instruction/" +
-    "retell_instructions_1.m4a"
-  ),
-  (
-    "https://merls-story-audio." +
-    "s3.us-east-2.amazonaws.com/" +
-    "instruction/" +
-    "retell_instructions_2.m4a"
-  ),
-  (
-    "https://merls-story-audio." +
-    "s3.us-east-2.amazonaws.com/" +
-    "instruction/" +
-    "retell_instructions_2.m4a"
-  ),
+const retellingLinksEnglish = [
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_1.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/retell_instructions_2.m4a",
+];
+const retellingLinksChinese = [
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/006%2BMandarin.m4a",
 ];
 
+const questionInstructionEnglish =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/instruction/question_instructions.m4a";
+const questionInstructionChinese =
+  "https://merls-story-audio.s3.us-east-2.amazonaws.com/narration/2-dog-story/009%2Bmandarin.m4a";
 
-const normalizeStoryData = (
-  rawData
-) => {
-  if (
-    !Array.isArray(rawData)
-    || rawData.length === 0
-  ) {
+const isValidAudioLink = (link) => {
+  if (!link || typeof link !== "string") {
+    return false;
+  }
+
+  try {
+    const url = new URL(link.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const normalizeStoryData = (rawData) => {
+  const rows = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
+
+  if (rows.length === 0) {
     return [];
   }
 
-  if (
-    Array.isArray(
-      rawData[0]?.questions
-    )
-  ) {
-    return rawData.map(
-      (story, index) => ({
-        story_id:
-          story.story_id ??
-          index + 1,
-
-        questions:
-          Array.isArray(
-            story.questions
-          )
-            ? story.questions
-            : [],
-
-        image_links:
-          Array.isArray(
-            story.image_links
-          )
-            ? story.image_links
-            : [],
-
-        narration_audios:
-          Array.isArray(
-            story.narration_audios
-          )
-            ? story.narration_audios
-            : [],
-      })
-    );
+  // Story-detail payload: narration and questions are separate story fields.
+  if (rows.some((row) => Array.isArray(row?.questions))) {
+    return rows.map((story, index) => ({
+      story_id: story.story_id ?? index + 1,
+      questions: Array.isArray(story.questions) ? story.questions : [],
+      image_links: Array.isArray(story.image_links) ? story.image_links : [],
+      narration_audios: Array.isArray(story.narration_audios)
+        ? story.narration_audios
+        : [],
+    }));
   }
 
-  const grouped = rawData.reduce(
-    (accumulator, row) => {
-      const storyId =
-        row.story_id ?? 1;
-
-      if (!accumulator[storyId]) {
-        accumulator[storyId] = {
-          story_id: storyId,
-          questions: [],
-          image_links: [],
-          narration_audios: [],
-        };
-      }
-
-      accumulator[
-        storyId
-      ].questions.push(row);
-
-      return accumulator;
-    },
-    {}
-  );
+  // New payload shape: flat list of questions with story_id.
+  const grouped = rows.reduce((acc, row) => {
+    const storyId = row.story_id ?? 1;
+    if (!acc[storyId]) {
+      acc[storyId] = {
+        story_id: storyId,
+        questions: [],
+        image_links: [],
+        narration_audios: [],
+      };
+    }
+    acc[storyId].questions.push(row);
+    return acc;
+  }, {});
 
   return Object.values(grouped)
     .map((story) => {
       const imageSet = new Set();
-      const narrationSet =
-        new Set();
+      const narrationSet = new Set();
 
-      const sortedQuestions = [
-        ...story.questions,
-      ].sort(
-        (first, second) =>
-          (
-            first.question_id ?? 0
-          ) -
-          (
-            second.question_id ?? 0
-          )
+      const sortedQuestions = [...story.questions].sort(
+        (a, b) => (a.question_id ?? 0) - (b.question_id ?? 0)
       );
 
-      sortedQuestions.forEach(
-        (question) => {
-          const links =
-            Array.isArray(
-              question.image_links
-            )
-              ? question.image_links
-              : [];
+      sortedQuestions.forEach((question) => {
+        const links = Array.isArray(question.image_links)
+          ? question.image_links
+          : [];
+        links.forEach((link) => {
+          if (link) {
+            imageSet.add(link);
+          }
+        });
 
-          links.forEach((link) => {
-            if (link) {
-              imageSet.add(link);
+        if (question.narration_audios) {
+          question.narration_audios.forEach((audio) => {
+            if (audio) {
+              narrationSet.add(audio);
             }
           });
-
-          if (
-            question.narration_audio
-          ) {
-            narrationSet.add(
-              question.narration_audio
-            );
-          }
         }
-      );
+      });
 
       return {
         ...story,
-        questions:
-          sortedQuestions,
-        image_links:
-          Array.from(imageSet),
-        narration_audios:
-          Array.from(narrationSet),
+        questions: sortedQuestions,
+        image_links: Array.from(imageSet),
+        narration_audios: Array.from(narrationSet),
       };
     })
-    .sort(
-      (first, second) =>
-        (
-          first.story_id ?? 0
-        ) -
-        (
-          second.story_id ?? 0
-        )
-    );
+    .sort((a, b) => (a.story_id ?? 0) - (b.story_id ?? 0));
 };
 
+const StoryTest = ({ language }) => {
+  const isChinese = isChineseLanguage(language);
+  const narrationInstruction = isChinese
+    ? narrationInstructionChinese
+    : narrationInstructionEnglish;
+  const retellingLinks = isChinese ? retellingLinksChinese : retellingLinksEnglish;
+  const questionInstruction = isChinese
+    ? questionInstructionChinese
+    : questionInstructionEnglish;
 
-const StoryTest = ({
-  language,
-}) => {
-  const [
-    currentStory,
-    setCurrentStory,
-  ] = useState(1);
+  // currentStory uses 1-based indexing
+  const [currentStory, setCurrentStory] = useState(1);
+  // stage 0: narration instr, 1: narration, 2: retell, 3: question instr, 4: questions
+  const [stage, setStage] = useState(0);
+  const [subStage, setSubStage] = useState(1);
+  const subStageRef = useRef(subStage);
 
-  const [
-    stage,
-    setStage,
-  ] = useState(0);
+  const [audioUrls, setAudioUrls] = useState({});
+  const [retellUrls, setRetellUrls] = useState({});
 
-  const [
-    subStage,
-    setSubStage,
-  ] = useState(1);
+  // story data
+  const [stories, setStories] = useState([]);
+  const [imageLinks, setImageLinks] = useState([]);
+  const [narrationLinks, setNarrationLinks] = useState([]);
+  const [questions, setQuestions] = useState([]);
 
-  const subStageRef =
-    useRef(subStage);
+  const [showAudioPermission, setShowAudioPermission] = useState(true);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showLoading, setShowLoading] = useState(true);
+  const [completed, setCompleted] = useState(false);
+  const [showChinese, setShowChinese] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioPaused, setAudioPaused] = useState(false);
+  const [audioAutoPlay, setAudioAutoPlay] = useState(true);
+  const [countDown, setCountDown] = useState(3);
+  const [disableOption, setDisableOption] = useState(true);
+  const [uploadsInProgress, setUploadsInProgress] = useState(0);
 
-  const [
-    audioUrls,
-    setAudioUrls,
-  ] = useState({});
+  // progress bar
+  const [totalStages, setTotalStages] = useState(1);
+  const [currentStage, setCurrentStage] = useState(0);
 
-  const [
-    retellUrls,
-    setRetellUrls,
-  ] = useState({});
+  const timeoutRef = useRef(null);
+  const audioRef = useRef(null);
+  const audioLinkRef = useRef("");
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [
-    stories,
-    setStories,
-  ] = useState([]);
-
-  const [
-    imageLinks,
-    setImageLinks,
-  ] = useState([]);
-
-  const [
-    narrationLinks,
-    setNarrationLinks,
-  ] = useState([]);
-
-  const [
-    questions,
-    setQuestions,
-  ] = useState([]);
-
-  const [
-    showAudioPermission,
-    setShowAudioPermission,
-  ] = useState(true);
-
-  const [
-    showConfirmation,
-    setShowConfirmation,
-  ] = useState(false);
-
-  const [
-    showLoading,
-    setShowLoading,
-  ] = useState(true);
-
-  const [
-    completed,
-    setCompleted,
-  ] = useState(false);
-
-  const [
-    showChinese,
-    setShowChinese,
-  ] = useState(false);
-
-  const [
-    audioPlaying,
-    setAudioPlaying,
-  ] = useState(false);
-
-  const [
-    countDown,
-    setCountDown,
-  ] = useState(3);
-
-  const [
-    disableOption,
-    setDisableOption,
-  ] = useState(true);
-
-  const [
-    uploadsInProgress,
-    setUploadsInProgress,
-  ] = useState(0);
-
-  const [
-    totalStages,
-    setTotalStages,
-  ] = useState(1);
-
-  const [
-    currentStage,
-    setCurrentStage,
-  ] = useState(0);
-
-  const timeoutRef =
-    useRef(null);
-
-  const navigate =
-    useNavigate();
-
-  const location =
-    useLocation();
-
+  // language flag from query
   useEffect(() => {
-    const params =
-      new URLSearchParams(
-        location.search
-      );
-
-    const languageParam =
-      params.get("cn-zw");
-
-    setShowChinese(
-      languageParam === "true"
-    );
+    const params = new URLSearchParams(location.search);
+    const languageParam = params.get("cn-zw");
+    setShowChinese(languageParam === "true");
   }, [location]);
 
+  // initial audio instructions countdown + playback
   useEffect(() => {
-    clearTimeout(
-      timeoutRef.current
-    );
-
-    if (
-      showLoading
-      || showAudioPermission
-    ) {
-      return undefined;
+    clearTimeout(timeoutRef.current);
+    if (showLoading || showAudioPermission) {
+      return;
     }
-
     if (countDown > 0) {
-      timeoutRef.current =
-        setTimeout(() => {
-          setCountDown(
-            (previous) =>
-              previous - 1
-          );
-        }, 1000);
-
-    } else if (!audioPlaying) {
+      timeoutRef.current = setTimeout(() => {
+        setCountDown((prev) => prev - 1);
+      }, 1000);
+    } else if (audioAutoPlay && !audioPlaying && !audioPaused) {
       playAudio();
     }
 
-    return () =>
-      clearTimeout(
-        timeoutRef.current
-      );
-
+    return () => clearTimeout(timeoutRef.current);
   }, [
     countDown,
     showLoading,
     showAudioPermission,
     audioPlaying,
+    audioPaused,
+    audioAutoPlay,
   ]);
 
   useEffect(() => {
-    async function fetchStoryData() {
-      try {
-        const response =
-          await fetch(
-            `${APIBASEURL}/questions` +
-              `?language=` +
-              `${encodeURIComponent(
-                language
-              )}` +
-              `&type=story`,
-            {
-              method: "GET",
-              headers: {
-                Accept:
-                  "application/json",
-              },
-            }
-          );
-
-        const rawData =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            rawData.error ||
-              "Could not load story data."
-          );
-        }
-
-        const normalizedStories =
-          normalizeStoryData(
-            rawData
-          );
-
-        setStories(
-          normalizedStories
-        );
-
-        if (
-          normalizedStories.length
-          === 0
-        ) {
-          setShowLoading(false);
-          return;
-        }
-
-        setQuestions(
-          normalizedStories[0]
-            .questions || []
-        );
-
-        setImageLinks(
-          normalizedStories[0]
-            .image_links || []
-        );
-
-        setNarrationLinks(
-          normalizedStories[0]
-            .narration_audios || []
-        );
-
-        audioLink =
-          narrationInstruction;
-
-        let total = 0;
-
-        for (
-          const story
-          of normalizedStories
-        ) {
-          total += 8;
-
-          total += Array.isArray(
-            story.questions
-          )
-            ? story.questions.length
-            : 0;
-        }
-
-        setTotalStages(total);
-
-      } catch (error) {
-        console.error(
-          "Could not load story test:",
-          error
-        );
-
-        alert(
-          "The story test could not be loaded. " +
-            error.message
-        );
-
-      } finally {
-        setShowLoading(false);
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
       }
+    };
+  }, []);
+
+  // fetch story data
+  useEffect(() => {
+    async function fetchStoryData() {
+      const apiLanguage = isChineseLanguage(language) ? "CN" : "EN";
+      const storyListUrl = `${APIBASEURL}/questions?language=${encodeURIComponent(
+        apiLanguage
+      )}&type=story`;
+      const response = await fetch(storyListUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch story list: ${response.status}`);
+      }
+
+      console.log("getting story data");
+      const storyList = await response.json();
+      const storySummaries = Array.isArray(storyList)
+        ? storyList
+        : storyList
+        ? [storyList]
+        : [];
+      const languageStories = storySummaries.filter(
+        (story) =>
+          !story.language ||
+          String(story.language).toUpperCase() === apiLanguage
+      );
+
+      const storyDetails = await Promise.all(
+        languageStories.map(async (story) => {
+          if (Array.isArray(story.questions)) {
+            return story;
+          }
+
+          const detailUrl = `${storyListUrl}&story_id=${encodeURIComponent(
+            story.story_id
+          )}`;
+          const detailResponse = await fetch(detailUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          });
+          if (!detailResponse.ok) {
+            throw new Error(
+              `Failed to fetch story ${story.story_id}: ${detailResponse.status}`
+            );
+          }
+          return detailResponse.json();
+        })
+      );
+
+      const normalizedStories = normalizeStoryData(storyDetails);
+      setStories(normalizedStories);
+      console.log("Fetched story data:", normalizedStories);
+
+      if (!normalizedStories || normalizedStories.length === 0) {
+        setShowLoading(false);
+        return;
+      }
+
+      // initialize with first story
+      setQuestions(normalizedStories[0].questions || []);
+      setImageLinks(normalizedStories[0].image_links || []);
+      setNarrationLinks(normalizedStories[0].narration_audios || []);
+      audioLinkRef.current = narrationInstruction;
+      setShowLoading(false);
+
+      // compute total stages
+      let total = 0;
+      for (const element of normalizedStories) {
+        // 4 narration/retell instruction chunks + 3 retell segments + 1 question instruction + N questions
+        total += 8;
+        total += Array.isArray(element.questions) ? element.questions.length : 0;
+      }
+      setTotalStages(total);
     }
 
-    fetchStoryData();
+    fetchStoryData().catch((error) => {
+      console.error("Failed to load story data:", error);
+      setShowLoading(false);
+    });
   }, [language]);
 
-  const recordAudioUrl = (
-    questionId,
-    s3Url,
-    type
-  ) => {
-    if (
-      !questionId
-      || !s3Url
-    ) {
-      console.error(
-        "Missing required parameters:",
-        {
-          questionId,
-          s3Url,
-        }
-      );
-
+  const recordAudioUrl = (questionId, s3Url, type) => {
+    if (!questionId || !s3Url) {
+      console.error("Missing required parameters:", { questionId, s3Url });
       return;
     }
-
-    const truncatedUrl =
-      s3Url.split("?")[0];
+    const truncatedUrl = s3Url.split("?")[0];
 
     if (type === "retell") {
-      setRetellUrls(
-        (previous) => ({
-          ...previous,
+      setRetellUrls((prev) => {
+        const updated = {
+          ...prev,
           [currentStory]: {
-            ...(
-              previous[
-                currentStory
-              ] || {}
-            ),
-            [questionId]:
-              truncatedUrl,
+            ...(prev[currentStory] || {}),
+            [questionId]: truncatedUrl,
           },
-        })
-      );
-
+        };
+        console.log("Current Audio URLs for retell:", updated);
+        return updated;
+      });
     } else {
-      setAudioUrls(
-        (previous) => ({
-          ...previous,
+      setAudioUrls((prev) => {
+        const updated = {
+          ...prev,
           [currentStory]: {
-            ...(
-              previous[
-                currentStory
-              ] || {}
-            ),
-            [questionId]:
-              truncatedUrl,
+            ...(prev[currentStory] || {}),
+            [questionId]: truncatedUrl,
           },
-        })
-      );
+        };
+        console.log("Current Audio URLs for questions:", updated);
+        return updated;
+      });
     }
   };
 
-  const uploadToLambda = async (
-    recordedBlob,
-    type
-  ) => {
-    setUploadsInProgress(
-      (previous) =>
-        previous + 1
-    );
+  const uploadToLambda = async (recordedBlob, type, explicitQuestionId) => {
+    setUploadsInProgress((prev) => prev + 1);
 
     try {
-      if (!recordedBlob?.blob) {
-        throw new Error(
-          "No audio recording was provided."
-        );
+      const blob = recordedBlob?.blob || recordedBlob;
+      if (!blob) {
+        throw new Error("No audio blob was captured.");
       }
 
-      const base64Data =
-        await new Promise(
-          (resolve, reject) => {
-            const reader =
-              new FileReader();
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
 
-            reader.onload = () =>
-              resolve(
-                reader.result
-              );
+      const questionId = explicitQuestionId ?? subStageRef.current;
+      console.log("current story id:", currentStory);
+      console.log("current question id:", questionId);
 
-            reader.onerror =
-              reject;
+      const participantId = localStorage.getItem("username");
 
-            reader.readAsDataURL(
-              recordedBlob.blob
-            );
-          }
-        );
-
-      const questionId =
-        subStage;
+      if (!participantId) {
+        throw new Error("No participant username found.");
+      }
 
       const requestBody = {
-        fileType:
-          recordedBlob.blob.type
-          || "audio/webm",
-
-        audioData:
-          base64Data,
-
-        userId:
-          localStorage.getItem(
-            "username"
-          ),
-
+        fileType: blob.type || "audio/webm",
+        audioData: base64Data,
+        userId: participantId,
         questionId,
-
-        bucketName:
-          buildRecordingBin({
-            language,
-            task:
-              type === "retell"
-                ? "story-retell"
-                : "story-question",
-            source:
-              "system-recording",
-            storyId:
-              currentStory,
-            questionId,
-          }),
+        bucketName: buildRecordingBin({
+          language,
+          task: type === "retell" ? "story-retell" : "story-question",
+          source: "system-recording",
+          storyId: currentStory,
+          questionId,
+        }),
       };
 
-      const response =
-        await fetch(
-          LAMBDAAPIENDPOINT,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body:
-              JSON.stringify(
-                requestBody
-              ),
-          }
-        );
+      const response = await fetch(LAMBDAAPIENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-      const data =
-        await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
-            "Audio upload failed."
+          data.details ||
+            data.error ||
+            `Upload failed with status ${response.status}`
         );
       }
 
       if (!data.url) {
-        throw new Error(
-          "The backend did not return " +
-            "an audio URL."
-        );
+        throw new Error("The backend did not return an audio URL.");
       }
 
-      recordAudioUrl(
-        questionId,
-        data.url,
-        type
-      );
+      recordAudioUrl(questionId, data.url, type);
 
       return data.url;
-
+    } catch (error) {
+      console.error("Failed to upload story audio:", error);
+      return null;
     } finally {
-      setUploadsInProgress(
-        (previous) =>
-          Math.max(
-            0,
-            previous - 1
-          )
-      );
+      setUploadsInProgress((prev) => Math.max(prev - 1, 0));
     }
   };
 
-  const submitAnswers =
-    async () => {
-      const username =
-        localStorage.getItem(
-          "username"
-        );
+  const submitAnswers = async () => {
+    const username = localStorage.getItem("username");
+    const endpoint = `${APIBASEURL}/submissions`;
 
-      const endpoint =
-        `${APIBASEURL}/submissions`;
-
-      const requestBody = {
-        participantId:
-          username,
-
-        userAns:
-          null,
-
-        isEN:
-          String(language)
-            .toLowerCase()
-          !== "chinese",
-
-        isAudioTest:
-          false,
-
-        storySubmissionList:
-          audioUrls,
-
-        retellSubmissionList:
-          retellUrls,
-
-        submissionType:
-          "story",
-      };
-
-      const response =
-        await fetch(
-          endpoint,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body:
-              JSON.stringify(
-                requestBody
-              ),
-          }
-        );
-
-      if (response.ok) {
-        const queryParam =
-          `?cn-zw=` +
-          `${
-            showChinese
-              ? "true"
-              : "false"
-          }`;
-
-        navigate(
-          `/test-selection` +
-            queryParam
-        );
-
-      } else {
-        let message =
-          "Failed to submit answers";
-
-        try {
-          const errorData =
-            await response.json();
-
-          message =
-            errorData.error
-            || message;
-        } catch {
-          // Keep default message.
-        }
-
-        alert(message);
-      }
+    const requestBody = {
+      participantId: username,
+      userAns: null,
+      isEN: !isChineseLanguage(language),
+      isAudioTest: false,
+      storySubmissionList: audioUrls,
+      retellSubmissionList: retellUrls,
+      submissionType: "story",
     };
 
+    console.log("Submitting data:", requestBody);
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (response.ok) {
+      const queryParam = `?cn-zw=${showChinese ? "true" : "false"}`;
+      navigate(`/test-selection${queryParam}`);
+    } else {
+      alert("Failed to submit answers");
+    }
+  };
+
   const playAudio = () => {
-    if (!audioLink) {
+    const currentAudioLink = audioLinkRef.current?.trim();
+    console.log("playing", currentAudioLink);
+    if (!isValidAudioLink(currentAudioLink)) {
+      console.log("audio link invalid");
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+        audioRef.current = null;
+      }
+      setAudioPlaying(false);
+      setAudioPaused(true);
+      setAudioAutoPlay(false);
       setDisableOption(false);
       return;
     }
 
-    if (questionAudio) {
-      questionAudio.pause();
+    if (audioRef.current && audioRef.current.src === currentAudioLink) {
+      audioRef.current.play().catch((error) => {
+        console.error("Error resuming audio:", error);
+        setDisableOption(false);
+      });
+      return;
     }
 
-    questionAudio =
-      new Audio(audioLink);
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
 
-    questionAudio.addEventListener(
-      "play",
-      () =>
-        setAudioPlaying(true)
-    );
+    const nextAudio = new Audio(currentAudioLink);
+    audioRef.current = nextAudio;
+    nextAudio.addEventListener("play", () => {
+      setAudioPaused(false);
+      setAudioPlaying(true);
+    });
+    nextAudio.addEventListener("pause", () => setAudioPlaying(false));
+    nextAudio.addEventListener("error", () => {
+      console.error("Error loading audio:", currentAudioLink);
+      if (audioRef.current === nextAudio) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+        audioRef.current = null;
+      }
+      setAudioPlaying(false);
+      setAudioPaused(true);
+      setAudioAutoPlay(false);
+      setDisableOption(false);
+    });
+    nextAudio.addEventListener("ended", () => {
+      setAudioPlaying(false);
+      setAudioPaused(false);
+      setAudioAutoPlay(false);
 
-    questionAudio.addEventListener(
-      "ended",
-      () => {
-        setAudioPlaying(false);
+      if (disableOption) {
         setDisableOption(false);
       }
-    );
+    });
 
-    questionAudio
+    nextAudio
       .play()
-      .catch(() => {
-        alert(
-          "Error playing the question."
-        );
-
-        setAudioPlaying(false);
+      .catch((error) => {
+        console.error("Error playing audio:", error);
+        alert("Error playing audio. You can continue to the next step.");
+        setAudioPaused(false);
+        setAudioAutoPlay(false);
         setDisableOption(false);
       });
   };
 
   const stopAudio = () => {
     try {
-      if (questionAudio) {
-        questionAudio.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
-
+      setAudioPaused(false);
       setAudioPlaying(false);
-
     } catch {
-      console.log(
-        "Could not pause audio"
-      );
+      console.log("couldn't pause audio");
     }
   };
 
-  const updateInstructionLink = (
-    stageValue,
-    subStageValue
-  ) => {
+  const pauseAudio = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setAudioPaused(true);
+      setAudioAutoPlay(false);
+      setAudioPlaying(false);
+    } catch {
+      console.log("couldn't pause audio");
+    }
+  };
+
+  const updateInstructionLink = (stageValue, subStageValue) => {
     if (stageValue === 1) {
-      audioLink =
-        narrationLinks[
-          subStageValue - 1
-        ] || "";
-
-    } else if (
-      stageValue === 2
-    ) {
-      audioLink =
-        retellingLinks[
-          subStageValue - 1
-        ] || "";
-
-    } else if (
-      stageValue === 4
-    ) {
-      audioLink =
-        questions[
-          subStageValue - 1
-        ]?.question_audio || "";
-
+      audioLinkRef.current = narrationLinks[subStageValue - 1] || "";
+    } else if (stageValue === 2) {
+      audioLinkRef.current = retellingLinks[subStageValue - 1] || "";
+    } else if (stageValue === 4) {
+      audioLinkRef.current = questions[subStageValue - 1]?.question_audio || "";
     } else {
-      audioLink = "";
+      audioLinkRef.current = "";
     }
   };
 
-  const advanceSubStage =
-    () => {
-      if (
-        stage === 0
-        && currentStory === 1
-      ) {
-        setShowConfirmation(true);
-        return;
-      }
+  const advanceSubStage = () => {
+    if (stage === 0 && currentStory === 1) {
+      setShowConfirmation(true);
+      return;
+    }
 
-      stopAudio();
-      setCountDown(3);
-      setDisableOption(true);
+    stopAudio();
+    setCountDown(3);
+    setAudioPaused(false);
+    setAudioAutoPlay(true);
+    setDisableOption(true);
+    setCurrentStage((prev) => prev + 1);
 
-      setCurrentStage(
-        (previous) =>
-          previous + 1
-      );
-
-      if (stage === 0) {
-        setSubStage(1);
-        setStage(1);
-
-        updateInstructionLink(
-          1,
-          1
-        );
-
-      } else if (
-        stage === 1
-      ) {
-        if (subStage === 3) {
-          updateInstructionLink(
-            2,
-            1
-          );
-
-          setStage(2);
-          setSubStage(1);
-
-        } else {
-          updateInstructionLink(
-            1,
-            subStage + 1
-          );
-
-          setSubStage(
-            (previous) =>
-              previous + 1
-          );
-        }
-
-      } else if (
-        stage === 2
-      ) {
-        subStageRef.current =
-          subStage;
-
-        if (subStage === 3) {
-          audioLink =
-            (
-              "https://merls-story-audio." +
-              "s3.us-east-2.amazonaws.com/" +
-              "instruction/" +
-              "question_instructions.m4a"
-            );
-
-          setStage(3);
-          setSubStage(1);
-
-        } else {
-          updateInstructionLink(
-            2,
-            subStage + 1
-          );
-
-          setSubStage(
-            (previous) =>
-              previous + 1
-          );
-        }
-
-      } else if (
-        stage === 3
-      ) {
-        setStage(4);
-
-        updateInstructionLink(
-          4,
-          1
-        );
-
-      } else {
-        subStageRef.current =
-          subStage;
-
-        if (
-          subStage ===
-          questions.length
-        ) {
-          audioLink =
-            narrationInstruction;
-
-          setStage(0);
-          setSubStage(1);
-
-          if (
-            currentStory ===
-            stories.length
-          ) {
-            setCompleted(true);
-            setAudioPlaying(true);
-
-          } else {
-            const nextStory =
-              stories[
-                currentStory
-              ];
-
-            setQuestions(
-              nextStory
-                ?.questions || []
-            );
-
-            setImageLinks(
-              nextStory
-                ?.image_links || []
-            );
-
-            setNarrationLinks(
-              nextStory
-                ?.narration_audios
-                || []
-            );
-
-            setCurrentStory(
-              (previous) =>
-                previous + 1
-            );
-          }
-
-        } else {
-          updateInstructionLink(
-            4,
-            subStage + 1
-          );
-
-          setSubStage(
-            (previous) =>
-              previous + 1
-          );
-        }
-      }
-    };
-
-  const getRetellLinks =
-    () => {
-      if (subStage === 1) {
-        return [
-          {
-            id: 1,
-            link:
-              imageLinks[0],
-          },
-          {
-            id: 2,
-            link:
-              imageLinks[1],
-          },
-        ].filter(
-          (item) =>
-            Boolean(item.link)
-        );
-      }
-
-      if (subStage === 2) {
-        return [
-          {
-            id: 3,
-            link:
-              imageLinks[2],
-          },
-          {
-            id: 4,
-            link:
-              imageLinks[3],
-          },
-        ].filter(
-          (item) =>
-            Boolean(item.link)
-        );
-      }
-
+    if (stage === 0) {
+      setSubStage(1);
+      setStage(1);
+      updateInstructionLink(1, 1);
+    } else if (stage === 1) {
       if (subStage === 3) {
-        return [
-          {
-            id: 5,
-            link:
-              imageLinks[4],
-          },
-          {
-            id: 6,
-            link:
-              imageLinks[5],
-          },
-        ].filter(
-          (item) =>
-            Boolean(item.link)
-        );
+        updateInstructionLink(2, 1);
+        setStage(2);
+        setSubStage(1);
+      } else {
+        updateInstructionLink(1, subStage + 1);
+        setSubStage((prev) => prev + 1);
       }
+    } else if (stage === 2) {
+      subStageRef.current = subStage;
+      if (subStage === 3) {
+        audioLinkRef.current = questionInstruction;
+        setStage(3);
+        setSubStage(1);
+      } else {
+        updateInstructionLink(2, subStage + 1);
+        setSubStage((prev) => prev + 1);
+      }
+    } else if (stage === 3) {
+      setStage(4);
+      updateInstructionLink(4, 1);
+    } else {
+      subStageRef.current = subStage;
+      if (subStage === questions.length) {
+        audioLinkRef.current = narrationInstruction;
+        setStage(0);
+        setSubStage(1);
+        if (currentStory === stories.length) {
+          setCompleted(true);
+          setAudioPlaying(true);
+          console.log("test ending");
+        } else {
+          const nextStory = stories[currentStory];
+          setQuestions(nextStory?.questions || []);
+          setImageLinks(nextStory?.image_links || []);
+          setNarrationLinks(nextStory?.narration_audios || []);
+          setCurrentStory((prev) => prev + 1);
+        }
+      } else {
+        updateInstructionLink(4, subStage + 1);
+        setSubStage((prev) => prev + 1);
+      }
+    }
+  };
 
-      return [];
-    };
+  const getRetellLinks = () => {
+    console.log("current substage is", subStage);
+    if (subStage === 1) {
+      return [
+        { id: 1, link: imageLinks[0] },
+        { id: 2, link: imageLinks[1] },
+      ].filter((item) => !!item.link);
+    } else if (subStage === 2) {
+      return [
+        { id: 3, link: imageLinks[2] },
+        { id: 4, link: imageLinks[3] },
+      ].filter((item) => !!item.link);
+    } else if (subStage === 3) {
+      return [
+        { id: 5, link: imageLinks[4] },
+        { id: 6, link: imageLinks[5] },
+      ].filter((item) => !!item.link);
+    }
+    return [];
+  };
 
   if (showLoading) {
     return (
-      <div
-        className={
-          "loadingContainer"
-        }
-      >
-        <CircularProgress
-          size={75}
-          thickness={3}
-          variant="indeterminate"
-        />
+      <div className="loadingContainer">
+        <CircularProgress size={75} thickness={3} variant="indeterminate" />
       </div>
     );
   }
 
-  if (
-    showAudioPermission
-  ) {
+  if (showAudioPermission) {
     return (
       <AudioPermission
-        showChinese={
-          showChinese
-        }
-        setShowAudioPermission={
-          setShowAudioPermission
-        }
+        showChinese={showChinese}
+        setShowAudioPermission={setShowAudioPermission}
       />
     );
   }
@@ -1060,52 +650,21 @@ const StoryTest = ({
   if (completed) {
     return (
       <div id="testPage">
-        <AppBar
-          className={
-            "titleContainer"
-          }
-        >
-          <progress
-            id="progress"
-            value={1}
-            max={1}
-          />
-
+        <AppBar className="titleContainer">
+          <progress id="progress" value={1} max={1} />
           <TranslationButton
-            showChinese={
-              showChinese
-            }
-            setShowChinese={
-              setShowChinese
-            }
+            showChinese={showChinese}
+            setShowChinese={setShowChinese}
           />
         </AppBar>
-
         <CompletionPage
-          showChinese={
-            showChinese
-          }
+          showChinese={showChinese}
           audioLink={
-            (
-              "https://non-question-links." +
-              "s3.us-east-2.amazonaws.com/" +
-              "RV-Englsih-End-of-the-test-" +
-              "narration-w-audio.m4a"
-            )
+            "https://non-question-links.s3.us-east-2.amazonaws.com/RV-Englsih-End-of-the-test-narration-w-audio.m4a"
           }
-          imageLink={
-            (
-              "https://non-question-links." +
-              "s3.us-east-2.amazonaws.com/" +
-              "puppy3.gif"
-            )
-          }
-          submitAnswers={
-            submitAnswers
-          }
-          uploadsInProgress={
-            uploadsInProgress
-          }
+          imageLink={"https://non-question-links.s3.us-east-2.amazonaws.com/puppy3.gif"}
+          submitAnswers={submitAnswers}
+          uploadsInProgress={uploadsInProgress}
         />
       </div>
     );
@@ -1113,79 +672,38 @@ const StoryTest = ({
 
   return (
     <div id="testPage">
-      <AppBar
-        className={
-          "titleContainer"
-        }
-      >
-        <progress
-          id="progress"
-          value={currentStage}
-          max={totalStages}
-        />
-
+      <AppBar className="titleContainer">
+        <progress id="progress" value={currentStage} max={totalStages} />
         <TranslationButton
-          showChinese={
-            showChinese
-          }
-          setShowChinese={
-            setShowChinese
-          }
+          showChinese={showChinese}
+          setShowChinese={setShowChinese}
         />
       </AppBar>
 
       {showConfirmation && (
         <Confirmation
-          showChinese={
-            showChinese
-          }
-          setShowConfirmation={
-            setShowConfirmation
-          }
-          englishText={
-            (
-              "Are you sure you want " +
-              "to begin the English " +
-              "Story Test?"
-            )
-          }
-          chineseText={
-            "你确定要开始英语故事测试吗"
-          }
+          showChinese={showChinese}
+          setShowConfirmation={setShowConfirmation}
+          englishText="Are you sure you want to begin the English Story Test?"
+          chineseText="你确定要开始英语故事测试吗"
           confirmAction={() => {
-            setShowConfirmation(false);
             setAudioPlaying(false);
+            setAudioPaused(false);
+            setAudioAutoPlay(true);
             setCountDown(3);
             setDisableOption(true);
-
-            setCurrentStage(
-              (previous) =>
-                previous + 1
-            );
-
+            setCurrentStage((prev) => prev + 1);
             setSubStage(1);
             setStage(1);
-
-            updateInstructionLink(
-              1,
-              1
-            );
+            updateInstructionLink(1, 1);
           }}
         />
       )}
 
-      {localStorage.getItem(
-        "username"
-      ) === "lucy" && (
-        <div
-          className={
-            "debugAdvanceButton"
-          }
-        >
+      {localStorage.getItem("username") === "lucy" && (
+        <div className="debugAdvanceButton">
           <GreenButton
-            textEnglish={
-              "next part"
-            }
+            textEnglish="next part"
             onClick={() => {
               stopAudio();
               advanceSubStage();
@@ -1194,97 +712,40 @@ const StoryTest = ({
         </div>
       )}
 
-      <div
-        className={
-          "indicator"
-        }
-      >
+      <div className="indicator">
         {audioPlaying ? (
           <div>
-            <IconButton
-              aria-label="pause"
-              disabled
-            >
+            <IconButton aria-label="pause" onClick={pauseAudio}>
               <PauseCircleIcon
                 color="primary"
-                className={
-                  "pauseButton disabled"
-                }
+                className="pauseButton"
               />
             </IconButton>
-
-            <p
-              className={
-                "actionText"
-              }
-            >
-              {showChinese
-                ? "播放中"
-                : (
-                    "Playing " +
-                    "Instructions"
-                  )}
+            <p className="actionText">
+              {showChinese ? "播放中" : "Playing Instructions"}
             </p>
           </div>
         ) : (
           <div>
             <IconButton
               aria-label="play"
-              style={{
-                marginBottom: 0,
-              }}
+              style={{ marginBottom: 0 }}
               onClick={playAudio}
             >
-              <PlayCircleIcon
-                color="primary"
-                className={
-                  "pauseButton"
-                }
-              />
+              <PlayCircleIcon color="primary" className="pauseButton" />
             </IconButton>
-
-            <div
-              className={
-                "actionText"
-              }
-            >
+            <div className="actionText">
               {countDown > 0 ? (
-                <p
-                  className={
-                    "actionText"
-                  }
-                >
+                <p className="actionText">
                   {showChinese ? (
-                    <>
-                      {countDown}
-                      {
-                        " 秒内播放音频"
-                      }
-                    </>
+                    <>{countDown} 秒内播放音频</>
                   ) : (
-                    <>
-                      {
-                        "Audio playing in "
-                      }
-                      {countDown}
-                      {
-                        " second(s)"
-                      }
-                    </>
+                    <>Audio playing in {countDown} second(s)</>
                   )}
                 </p>
               ) : (
-                <p
-                  className={
-                    "actionText"
-                  }
-                >
-                  {showChinese
-                    ? "再听一次指示?"
-                    : (
-                        "Listen to " +
-                        "instructions again?"
-                      )}
+                <p className="actionText">
+                  {showChinese ? "再听一次指示?" : "Listen to instructions again?"}
                 </p>
               )}
             </div>
@@ -1292,107 +753,64 @@ const StoryTest = ({
         )}
       </div>
 
-      {stage === 0 ||
-      stage === 1 ? (
+      {stage === 0 || stage === 1 ? (
         <Story
-          imageLinks={
-            imageLinks
-          }
-          disableOption={
-            disableOption
-          }
-          showChinese={
-            showChinese
-          }
+          imageLinks={imageLinks}
+          disableOption={disableOption}
+          showChinese={showChinese}
           beforeUnload={() => {
             stopAudio();
             advanceSubStage();
           }}
         />
-
       ) : stage === 2 ? (
         <Retell
-          imageLinks={
-            getRetellLinks()
-          }
-          showChinese={
-            showChinese
-          }
-          setShowChinese={
-            setShowChinese
-          }
-          disableOption={
-            disableOption
-          }
+          imageLinks={getRetellLinks()}
+          showChinese={showChinese}
+          setShowChinese={setShowChinese}
+          disableOption={disableOption}
           beforeUnload={() => {
             stopAudio();
             advanceSubStage();
           }}
-          uploadToLambda={
-            uploadToLambda
-          }
+          onStartRecording={pauseAudio}
+          uploadToLambda={uploadToLambda}
           type="retell"
-          participantId={
-            localStorage.getItem(
-              "username"
-            ) || ""
-          }
-          questionId={
-            (
-              `story-${currentStory}-` +
-              `retell-${subStage}`
-            )
-          }
-          testLanguage={
-            language
-          }
+          participantId={localStorage.getItem("username") || ""}
+          questionId={`story-${currentStory}-retell-${subStage}`}
+          explicitQuestionId={subStage}
+          testLanguage={language}
         />
-
       ) : stage === 3 ? (
         <Instructions
-          showChinese={
-            showChinese
-          }
+          showChinese={showChinese}
           beforeUnload={() => {
             stopAudio();
             advanceSubStage();
           }}
-          disableOption={
-            disableOption
-          }
+          disableOption={disableOption}
         />
-
       ) : stage === 4 ? (
         <Questions
-          showChinese={
-            showChinese
-          }
+          showChinese={showChinese}
           beforeUnload={() => {
             stopAudio();
             advanceSubStage();
           }}
-          disableOption={
-            disableOption
-          }
-          question={
-            questions[
-              subStage - 1
-            ]
-          }
-          uploadToLambda={
-            uploadToLambda
-          }
+          disableOption={disableOption}
+          question={questions[subStage - 1]}
+          storyId={currentStory}
+          testLanguage={isChinese ? "CN" : "EN"}
+          displayNumber={subStage}
+          uploadToLambda={uploadToLambda}
           type="question"
+          onStartRecording={pauseAudio}
         />
-
       ) : (
-        <div>
-          page does not exist
-        </div>
+        <div>page does not exist</div>
       )}
     </div>
   );
 };
-
 
 export default StoryTest;
