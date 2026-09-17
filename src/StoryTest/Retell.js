@@ -18,6 +18,7 @@ const Retell = ({
   onStartRecording,
   participantId,
   questionId,
+  explicitQuestionId,
   testLanguage,
 }) => {
   const [recording, setRecording] = useState(false);
@@ -73,9 +74,9 @@ const Retell = ({
     try {
       await videoRecorderRef.current?.startRecording();
     } catch (error) {
+      // Video is an optional add-on to the required audio recording,
+      // so a camera/session failure must not block audio capture.
       setVideoError(error.message);
-      alert(`Video is not ready: ${error.message}`);
-      return;
     }
 
     onStartRecording?.(); // auto pause the audio
@@ -111,7 +112,14 @@ const Retell = ({
     if (!audioBlob) return;
     setSubmitting(true);
     try {
-      await uploadToLambda(audioBlob, type);
+      const s3Url = await uploadToLambda(
+        audioBlob,
+        type,
+        explicitQuestionId
+      );
+      if (!s3Url) {
+        throw new Error("The server did not return a recording URL.");
+      }
       await videoRecorderRef.current?.waitForUpload();
       beforeUnload();
     } catch (e) {

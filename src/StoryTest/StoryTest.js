@@ -778,6 +778,7 @@ const StoryTest = ({ language }) => {
           type="retell"
           participantId={localStorage.getItem("username") || ""}
           questionId={`story-${currentStory}-retell-${subStage}`}
+          explicitQuestionId={subStage}
           testLanguage={language}
         />
       ) : stage === 3 ? (
