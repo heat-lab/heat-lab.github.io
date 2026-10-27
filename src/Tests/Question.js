@@ -4,11 +4,10 @@ import PauseCircleIcon from "@mui/icons-material/PauseCircle";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import IconButton from "@mui/material/IconButton";
 import GreenButton from "../Components/GreenButton";
-import VideoRecorder from "../Components/VideoRecorder";
 
 let questionAudio;
 
-const Question = ({ curQuestion, recordAnswer, showChinese, enableVideo = false, language = "english" }) => {
+const Question = ({ curQuestion, recordAnswer, showChinese, enableVideo = false, videoRecorderRef }) => {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [countDown, setCountDown] = useState(3);
   const [paused, setPaused] = useState(enableVideo);
@@ -16,7 +15,6 @@ const Question = ({ curQuestion, recordAnswer, showChinese, enableVideo = false,
   const [starting, setStarting] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [videoError, setVideoError] = useState("");
-  const videoRecorderRef = useRef(null);
   const cameraStoppedRef = useRef(false);
   const startLockRef = useRef(false);
   const submitLockRef = useRef(false);
@@ -88,7 +86,8 @@ const Question = ({ curQuestion, recordAnswer, showChinese, enableVideo = false,
     setStarting(true);
     setVideoError("");
     try {
-      await videoRecorderRef.current?.startRecording();
+      if (!videoRecorderRef?.current) throw new Error("Camera setup is loading. Please try again.");
+      await videoRecorderRef.current.startRecording();
       cameraStoppedRef.current = false;
       setWaitingForCamera(false);
       setCountDown(3);
@@ -132,17 +131,9 @@ const Question = ({ curQuestion, recordAnswer, showChinese, enableVideo = false,
     <div>
       {enableVideo && (
         <>
-          <VideoRecorder
-            ref={videoRecorderRef}
-            participantId={localStorage.getItem("username") || ""}
-            questionId={`matching-${curQuestion?.question_id ?? "unknown"}`}
-            testType="matching"
-            language={language}
-            showChinese={showChinese}
-          />
           {waitingForCamera && (
             <div style={{ margin: "20px 0", textAlign: "center" }}>
-              <p>{showChinese ? "请完成可选摄像头设置，然后开始题目。" : "Complete the optional camera setup, then begin the question."}</p>
+              <p>{showChinese ? "请完成可选摄像头设置，然后开始题目。" : "Set up cameras above once, then begin each question."}</p>
               <GreenButton showChinese={showChinese} textEnglish={starting ? "Starting..." : "Camera setup finished — begin"} textChinese="摄像头设置完成—开始" disabled={starting} onClick={beginQuestion} />
             </div>
           )}
