@@ -128,7 +128,7 @@ const VideoRecorder = forwardRef(
     const [
       cameraCount,
       setCameraCount,
-    ] = useState(0);
+    ] = useState(2);
 
     const [
       session,
@@ -985,7 +985,7 @@ const VideoRecorder = forwardRef(
 
 
     return (
-      <details
+      <details open
         style={{
           marginTop: 24,
           padding: 16,
