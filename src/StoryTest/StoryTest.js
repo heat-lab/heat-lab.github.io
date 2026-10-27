@@ -1364,6 +1364,8 @@ const StoryTest = ({
 
       ) : stage === 4 ? (
         <Questions
+          storyId={currentStory}
+          testLanguage={language}
           showChinese={
             showChinese
           }
