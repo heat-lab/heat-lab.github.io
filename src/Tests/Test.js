@@ -14,6 +14,7 @@ import {
 } from "react-router-dom";
 
 import Question from "./Question";
+import VideoRecorder from "../Components/VideoRecorder";
 import Repetition from "./Repetition";
 import Instructions from "./Instructions";
 import Practice from "./Practice";
@@ -151,6 +152,14 @@ const Test = ({
     ],
   ];
 
+
+  const matchingRecorderRef = useRef(null);
+  const [matchingRecorderMounted, setMatchingRecorderMounted] = useState(false);
+  useEffect(() => {
+    if (type === "matching" && !showPractice && !showInstructions && !showAudioPermission && !showReinforcementPage && questions.length && curId < questions.length) {
+      setMatchingRecorderMounted(true);
+    }
+  }, [type, showPractice, showInstructions, showAudioPermission, showReinforcementPage, questions.length, curId]);
 
   const audioLink =
     useRef("");
@@ -893,6 +902,18 @@ const Test = ({
             "testContainer"
           }
         >
+          {type === "matching" && matchingRecorderMounted && !completed && (
+            <div style={{display: (showReinforcementPage || showAudioPermission || showInstructions || showPractice) ? "none" : "block"}}>
+              <VideoRecorder
+                ref={matchingRecorderRef}
+                participantId={localStorage.getItem("username") || ""}
+                questionId={`matching-${questions[curId]?.question_id ?? "unknown"}`}
+                testType="matching"
+                language={language}
+                showChinese={showChinese}
+              />
+            </div>
+          )}
           {completed ? (
             <div>
               <CompletionPage
@@ -1030,7 +1051,7 @@ const Test = ({
             <Question
               key={`${language}-matching-${curId}`}
               enableVideo={true}
-              language={language}
+              videoRecorderRef={matchingRecorderRef}
               curQuestion={
                 questions[
                   curId
