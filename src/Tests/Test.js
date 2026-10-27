@@ -1028,6 +1028,9 @@ const Test = ({
           ) : type ===
             "matching" ? (
             <Question
+              key={`${language}-matching-${curId}`}
+              enableVideo={true}
+              language={language}
               curQuestion={
                 questions[
                   curId
