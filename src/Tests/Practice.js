@@ -104,6 +104,7 @@ const Practice = ({
                             </p>
 
                             <Repetition
+                                enableVideo={false}
                                 curQuestion={question}
                                 recordAnswer={finishPractice}
                                 showChinese={showChinese}
