@@ -4,6 +4,7 @@ import React, {
   useState,
 } from "react";
 import { ReactMic } from "react-mic";
+import VideoRecorder from "../Components/VideoRecorder";
 
 import "./StoryTest.css";
 
@@ -15,6 +16,8 @@ const Questions = ({
   uploadToLambda,
   type,
   disableOption,
+  storyId,
+  testLanguage,
 }) => {
   const [
     recording,
@@ -37,6 +40,13 @@ const Questions = ({
   ] = useState(null);
 
   const micRef = useRef(null);
+  const videoRecorderRef = useRef(null);
+  const videoStopPromiseRef = useRef(Promise.resolve());
+  const videoStoppedRef = useRef(false);
+  const uploadedAudioUrlRef = useRef(null);
+  const startLockRef = useRef(false);
+  const [starting, setStarting] = useState(false);
+  const [videoError, setVideoError] = useState("");
 
   const questionText =
     question?.question_text || "";
@@ -61,27 +71,42 @@ const Questions = ({
     setUploading(false);
     setUploadError("");
     setPendingRecording(null);
-  }, [questionId]);
+    setVideoError("");
+    uploadedAudioUrlRef.current = null;
+    videoStoppedRef.current = false;
+    videoStopPromiseRef.current = Promise.resolve();
+  }, [questionId, storyId]);
 
 
-  const startRecording = () => {
-    if (
-      uploading ||
-      disableOption
-    ) {
-      return;
-    }
-
+  const startRecording = async () => {
+    if (uploading || disableOption || startLockRef.current) return;
+    startLockRef.current = true;
+    setStarting(true);
+    setVideoError("");
     setUploadError("");
-    setPendingRecording(null);
-    setRecording(true);
+    try {
+      await videoRecorderRef.current.startRecording();
+      videoStoppedRef.current = false;
+      videoStopPromiseRef.current = Promise.resolve();
+      uploadedAudioUrlRef.current = null;
+      setPendingRecording(null);
+      setRecording(true);
+    } catch (error) {
+      setVideoError(error.message || "Could not start cameras. Check setup and try again.");
+    } finally {
+      startLockRef.current = false;
+      setStarting(false);
+    }
   };
-
 
   const stopRecording = () => {
+    if (!recording) return;
+    videoStopPromiseRef.current = videoRecorderRef.current.stopRecording().then(() => {
+      videoStoppedRef.current = true;
+      return null;
+    }, error => error);
     setRecording(false);
   };
-
 
   const uploadRecording = async (
     recordedBlob
@@ -109,31 +134,18 @@ const Questions = ({
     );
 
     try {
-      const s3Url =
-        await uploadToLambda(
-          recordedBlob,
-          type
-        );
-
-      if (!s3Url) {
-        throw new Error(
-          "The server did not return " +
-            "a recording URL."
-        );
+      if (!uploadedAudioUrlRef.current) {
+        const s3Url = await uploadToLambda(recordedBlob, type);
+        if (!s3Url) throw new Error("The server did not return a recording URL.");
+        uploadedAudioUrlRef.current = s3Url;
       }
-
-      console.log(
-        "Recording stored at:",
-        s3Url
-      );
-
-      /*
-       * Only advance AFTER the
-       * recording has successfully
-       * uploaded.
-       */
+      let stopError = await videoStopPromiseRef.current;
+      if (stopError && !videoStoppedRef.current) {
+        await videoRecorderRef.current.stopRecording();
+        videoStoppedRef.current = true;
+      }
+      await videoRecorderRef.current.waitForUpload();
       setPendingRecording(null);
-
       beforeUnload();
 
     } catch (error) {
@@ -191,6 +203,15 @@ const Questions = ({
 
   return (
     <div id="questions">
+      <VideoRecorder
+        ref={videoRecorderRef}
+        participantId={localStorage.getItem("username") || ""}
+        questionId={`story-${storyId ?? "unknown"}-question-${questionId || "unknown"}`}
+        testType="story-question"
+        language={testLanguage}
+        showChinese={showChinese}
+      />
+      {videoError && <p role="alert" style={{color: "#b00020"}}>{videoError}</p>}
       <div
         className="reactMicContainer"
       >
@@ -275,7 +296,7 @@ const Questions = ({
               )}
         </div>
 
-      ) : uploading ? (
+      ) : uploading || starting ? (
         <div
           className={
             "recordingContainer disabled"
