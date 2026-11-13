@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { APIBASEURL } from "../config";
+import PhoneCameraMonitor from "./PhoneCameraMonitor";
 
 
 const CAMERA_OPTIONS = [
@@ -1145,6 +1146,8 @@ const VideoRecorder = forwardRef(
             />
           </div>
         )}
+
+        {session?.sessionId && <PhoneCameraMonitor sessionId={session.sessionId} showChinese={showChinese} />}
 
         {session && (
           <div
