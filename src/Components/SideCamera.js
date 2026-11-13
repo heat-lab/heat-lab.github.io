@@ -168,6 +168,9 @@ const SideCamera = ({
     setRetryUpload,
   ] = useState(null);
 
+  const [facingMode, setFacingMode] = useState("environment");
+  const [switchingCamera, setSwitchingCamera] = useState(false);
+  const switchingRef = useRef(false);
   const previewRef = useRef(null);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
@@ -441,7 +444,7 @@ const SideCamera = ({
         currentRecordingIdRef.current &&
       latest.recordingId !==
         pendingRecordingIdRef.current &&
-      !recorderRef.current
+      !recorderRef.current && !switchingRef.current
     ) {
       pendingRecordingIdRef.current =
         latest.recordingId;
@@ -647,7 +650,7 @@ const SideCamera = ({
           .getUserMedia({
             video: {
               facingMode:
-                "environment",
+                facingMode,
               width: {
                 ideal: 640,
               },
@@ -757,6 +760,94 @@ const SideCamera = ({
     }
   };
 
+
+  const switchCamera = async () => {
+    if (switchingRef.current || recording || uploading || retryUpload ||
+        recorderRef.current || pendingRecordingIdRef.current) return;
+    switchingRef.current = true;
+    setSwitchingCamera(true);
+    setError("");
+    const target = facingMode === "environment" ? "user" : "environment";
+    const heartbeatUrl = `${APIBASEURL}/recording-sessions/${normalizedSessionId}/heartbeat`;
+    try {
+      // Mark unavailable before releasing the old camera (required on iOS).
+      await postJson(heartbeatUrl, { deviceRole, active: false, switching: true });
+      const latest = await refreshSession();
+      if (latest.status === "recording") throw new Error("Wait until this recording finishes before switching cameras.");
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      setStream(null);
+      const next = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: target }, width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      streamRef.current = next;
+      setStream(next);
+      setFacingMode(target);
+      await postJson(heartbeatUrl, { deviceRole, active: true, switching: false });
+    } catch (failure) {
+      setError(`Camera switch failed: ${failure.message} Check the preview before continuing.`);
+      if (!streamRef.current) setConnected(false);
+      try {
+        await postJson(heartbeatUrl, { deviceRole,
+          active: streamRef.current?.getVideoTracks()[0]?.readyState === "live", switching: false });
+      } catch { /* Heartbeat expires if the network is unavailable. */ }
+    } finally {
+      switchingRef.current = false;
+      setSwitchingCamera(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!connected || !deviceRole) return undefined;
+    let disposed = false;
+    let timer;
+    let controller;
+    const url = `${APIBASEURL}/recording-sessions/${normalizedSessionId}/heartbeat`;
+    const canvas = document.createElement("canvas");
+    const report = async () => {
+      controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 4000);
+      try {
+        const track = streamRef.current?.getVideoTracks()[0];
+        const active = !switchingRef.current && document.visibilityState === "visible" &&
+          track?.readyState === "live" && !track.muted;
+        const video = previewRef.current;
+        let preview;
+        if (active && video?.readyState >= 2 && video.videoWidth) {
+          canvas.width = 320;
+          canvas.height = Math.round(320 * video.videoHeight / video.videoWidth);
+          canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+          preview = canvas.toDataURL("image/jpeg", 0.45);
+        }
+        await requestJson(url, { method: "POST", signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceRole, active: Boolean(active), ...(preview ? { preview } : {}) }),
+        });
+      } catch {
+        // Laptop independently expires heartbeat status; session polling shows network errors here.
+      } finally {
+        window.clearTimeout(timeout);
+        if (!disposed) timer = window.setTimeout(report, 1000);
+      }
+    };
+    const reportLeaving = () => {
+      navigator.sendBeacon?.(url, new Blob([JSON.stringify({ deviceRole, active: false })],
+        { type: "application/json" }));
+    };
+    const visibility = () => { if (document.visibilityState !== "visible") reportLeaving(); };
+    window.addEventListener("pagehide", reportLeaving);
+    document.addEventListener("visibilitychange", visibility);
+    report();
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      controller?.abort();
+      reportLeaving();
+      window.removeEventListener("pagehide", reportLeaving);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [connected, deviceRole, normalizedSessionId]);
 
   const retryLastUpload = async () => {
     if (!retryUpload) {
@@ -891,6 +982,13 @@ const SideCamera = ({
         </button>
       )}
 
+      {connected && <div>
+        <button type="button" onClick={switchCamera}
+          disabled={switchingCamera || recording || uploading || Boolean(retryUpload) || session?.status === "recording"}>
+          {switchingCamera ? "Switching camera…" : facingMode === "environment" ? "Use front camera" : "Use rear camera"}
+        </button>
+        <p>Switch cameras before recording. This phone preview also appears on the laptop.</p>
+      </div>}
       {stream && (
         <div
           style={{
