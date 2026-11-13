@@ -1,4 +1,4 @@
-import React, {
+\import React, {
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import { APIBASEURL } from "../config";
-import PhoneCameraMonitor from "./PhoneCameraMonitor";
 
 
 const CAMERA_OPTIONS = [
@@ -129,7 +128,7 @@ const VideoRecorder = forwardRef(
     const [
       cameraCount,
       setCameraCount,
-    ] = useState(2);
+    ] = useState(0);
 
     const [
       session,
@@ -986,7 +985,7 @@ const VideoRecorder = forwardRef(
 
 
     return (
-      <details open
+      <details
         style={{
           marginTop: 24,
           padding: 16,
@@ -1146,8 +1145,6 @@ const VideoRecorder = forwardRef(
             />
           </div>
         )}
-
-        {session?.sessionId && <PhoneCameraMonitor sessionId={session.sessionId} showChinese={showChinese} />}
 
         {session && (
           <div
